@@ -8,36 +8,42 @@ Interact with remote devices. (Will be handle in followed-up version)
 ## Usage
 
 ### Start
-Download the module and copy it into the root direction of your project
-Include the module in settings.gradle
+Download the module and copy it into the root direction of your project.
+Include the module in settings.gradle.
 ```java
 include ':arpclient'
 ```
-### Init SDK
-Init SDK in ArpApplication.java
+Add implementation project in build.gradle.
 ```java
-public class ArpApplication extends Application {  
+dependencies {
+    implementation project(':arpclient')
+}
+```
+### Init SDK
+Init SDK in ARPApplication.java.
+```java
+public class ARPApplication extends Application {
     @Override  
     public void onCreate() {  
         super.onCreate();  
   
-        ArpClient.init(this);
+        ARPClient.init(this);
     }  
   
     @Override  
     public void onTerminate() {  
         super.onTerminate();  
   
-       ArpClient.fini();
+       ARPClient.fini();
     }  
 }
 ```
-Set permission and application config in AndroidMenifest.xml
+Set permission and application config in AndroidMenifest.xml.
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
 
 <application  
-    android:name=".ArpApplication"  
+    android:name=".ARPApplication"
     ...
 >  
     ...
@@ -45,7 +51,7 @@ Set permission and application config in AndroidMenifest.xml
 ```
 
 ### Get remote device screen
-Use MediaPlayer to get video of remote device screen
+Use MediaPlayer to get video of remote device screen.
 ```java
 private MediaPlayer mMediaPlayer;
 
@@ -80,7 +86,7 @@ public void onError(int errorCode, String msg) {
     // do something when errors happened
 }
 ```
-Set surface for MediaPlayer in SurfaceTextureListener
+Set surface for MediaPlayer in SurfaceTextureListener.
 ```java
 @Override
 public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {

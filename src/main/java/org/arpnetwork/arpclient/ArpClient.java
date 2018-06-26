@@ -19,7 +19,7 @@ import android.content.Context;
 
 import org.arpnetwork.arpclient.util.PreferenceManager;
 
-public class ArpClient {
+public class ARPClient {
 
     public static void init(Context context) {
         PreferenceManager.init(context);
