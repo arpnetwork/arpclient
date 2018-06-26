@@ -17,8 +17,6 @@ package org.arpnetwork.arpclient.data;
 
 public class ErrorCode {
     public static final int NETWORK_ERROR = -1;
-    public static final int READ_STREAM_ERROR = -2;
-    public static final int WRITE_STRAM_ERROR = -3;
 
     public static final int ERROR_PROTOCOL_VIDEO_INFO = -10002;
 }

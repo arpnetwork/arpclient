@@ -15,27 +15,28 @@
  */
 package org.arpnetwork.arpclient.protocol;
 
+import android.os.Handler;
+
 import com.google.gson.Gson;
 
 import org.arpnetwork.arpclient.data.AVPacket;
 import org.arpnetwork.arpclient.data.ConnectReq;
+import org.arpnetwork.arpclient.data.ErrorCode;
+import org.arpnetwork.arpclient.data.Message;
 import org.arpnetwork.arpclient.data.StopReq;
-import org.arpnetwork.arpclient.socket.OnConnectionListener;
-import org.arpnetwork.arpclient.socket.SocketService;
+import org.arpnetwork.arpclient.socket.NettyConnection;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 
-public class ProtocolProxy implements OnConnectionListener {
-
-    private static final int VIDEO = 0;
-    private static final int PROTOCOL = 3;
-
-    private OnProtocolListener mListener;
-    private SocketService mSocketService;
+public class ProtocolProxy implements NettyConnection.ConnectionListener {
     private Gson mGson;
+    private NettyConnection mConnection;
+    private OnProtocolListener mListener;
+
+    private Handler mHeartbeatHandler = new Handler();
 
     public interface OnProtocolListener {
         /**
@@ -70,25 +71,24 @@ public class ProtocolProxy implements OnConnectionListener {
     }
 
     public ProtocolProxy(OnProtocolListener listener) {
-        mSocketService = new SocketService(this);
+        mConnection = new NettyConnection(this);
         mListener = listener;
         mGson = new Gson();
     }
-
     /**
      * Open socket connection
-     * @param ip Socket ip
+     * @param host Socket ip
      * @param port Socket port
      */
-    public void open(String ip, int port) {
-        mSocketService.createSocket(ip, port);
+    public void open(String host, int port) {
+        mConnection.connect(host, port);
     }
 
     /**
      * Close socket connection
      */
     public void close() {
-        mSocketService.close();
+        mConnection.close();
     }
 
     /**
@@ -107,20 +107,26 @@ public class ProtocolProxy implements OnConnectionListener {
     }
 
     @Override
-    public void onConnected() {
+    public void onConnected(NettyConnection conn) {
         mListener.onConnected();
+        sendHeartbeat();
     }
 
     @Override
-    public void onReceiveData(ByteBuffer data) {
-        int type = data.get();
-        switch (type) {
-            case VIDEO:
-                mListener.onVideoPacket(getPacket(data));
+    public void onClosed(NettyConnection conn) {
+        mHeartbeatHandler.removeCallbacksAndMessages(null);
+        mListener.onClosed();
+    }
+
+    @Override
+    public void onMessage(NettyConnection conn, Message msg) {
+        switch (msg.getType()) {
+            case Message.VIDEO:
+                mListener.onVideoPacket(getPacket(msg.getDataBuffer()));
                 break;
 
-            case PROTOCOL:
-                int errorCode = mListener.onProtocolPacket(getString(data));
+            case Message.PROTOCOL:
+                int errorCode = mListener.onProtocolPacket(getString(msg.getDataBuffer()));
                 if (errorCode != 0) {
                     mListener.onError(errorCode, "parse protocol packet error");
                 }
@@ -132,24 +138,14 @@ public class ProtocolProxy implements OnConnectionListener {
     }
 
     @Override
-    public void onError(int errorCode, String msg) {
-        mListener.onError(errorCode, msg);
-    }
-
-    @Override
-    public void onClosed() {
-        mListener.onClosed();
+    public void onException(NettyConnection conn, Throwable cause) {
+        mListener.onError(ErrorCode.NETWORK_ERROR, cause.getMessage());
     }
 
     private void sendRequest(String request) {
         byte[] bytes = request.getBytes();
-        ByteBuffer byteBuffer = ByteBuffer.allocate(bytes.length + 5);
-        byteBuffer.putInt(bytes.length + 1); //size
-        byteBuffer.put((byte) PROTOCOL); //type
-        byteBuffer.put(bytes); //data
-        byteBuffer.flip();
-
-        mSocketService.write(byteBuffer);
+        Message msg = new Message((byte) Message.PROTOCOL, bytes);
+        mConnection.write(msg);
     }
 
     private static AVPacket getPacket(ByteBuffer data) {
@@ -170,6 +166,17 @@ public class ProtocolProxy implements OnConnectionListener {
         } catch (Exception ex) {
             return "";
         }
+    }
+
+    private void sendHeartbeat() {
+        Message msg = new Message((byte) Message.HEARTBEAT);
+        mConnection.write(msg);
+        mHeartbeatHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                sendHeartbeat();
+            }
+        }, 5000);
     }
 }
 
