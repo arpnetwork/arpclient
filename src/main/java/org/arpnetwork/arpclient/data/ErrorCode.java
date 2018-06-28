@@ -18,5 +18,6 @@ package org.arpnetwork.arpclient.data;
 public class ErrorCode {
     public static final int NETWORK_ERROR = -1;
 
+    public static final int ERROR_PROTOCOL_TOUCH_SETTING = -10001;
     public static final int ERROR_PROTOCOL_VIDEO_INFO = -10002;
 }

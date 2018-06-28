@@ -13,19 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.arpnetwork.arpclient;
+package org.arpnetwork.arpclient.data;
 
-import android.content.Context;
+public class TouchSettingPacket extends ProtocolPacket<TouchSetting> {
+    private static final int ID = 100;
 
-import org.arpnetwork.arpclient.util.PreferenceManager;
-
-public class ARPClient {
-
-    public static void init(Context context) {
-        PreferenceManager.init(context);
-    }
-
-    public static void fini() {
-        PreferenceManager.fini();
+    public TouchSettingPacket() {
+        super(ID);
     }
 }
+

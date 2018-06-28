@@ -16,6 +16,7 @@
 package org.arpnetwork.arpclient.protocol;
 
 import android.os.Handler;
+import android.util.Log;
 
 import com.google.gson.Gson;
 
@@ -46,19 +47,22 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
 
         /**
          * Socket error
+         *
          * @param code See {@link org.arpnetwork.arpclient.data.ErrorCode}
-         * @param msg Error details
+         * @param msg  Error details
          */
         void onError(int code, String msg);
 
         /**
          * Received video packet
+         *
          * @param packet Video packet
          */
         void onVideoPacket(AVPacket packet);
 
         /**
          * Received protocol packet
+         *
          * @param data Protocol json string
          * @return protocol packet error
          */
@@ -75,8 +79,10 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
         mListener = listener;
         mGson = new Gson();
     }
+
     /**
      * Open socket connection
+     *
      * @param host Socket ip
      * @param port Socket port
      */
@@ -95,7 +101,16 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
      * Send a connection request to remote device after socket connected
      */
     public void sendConnectReq() {
-        sendRequest(mGson.toJson(new ConnectReq(null)));
+        sendRequest(mGson.toJson(new ConnectReq(null)), Message.PROTOCOL);
+    }
+
+    /**
+     * Send touch event commands.
+     *
+     * @param touchInfo event commands
+     */
+    public void sendTouchEvent(String touchInfo) {
+        sendRequest(touchInfo, Message.TOUCH);
     }
 
     /**
@@ -103,7 +118,7 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
      * Once the stop request was sent, there is no way to reconnect to the same device
      */
     public void sendStopReq() {
-        sendRequest(mGson.toJson(new StopReq()));
+        sendRequest(mGson.toJson(new StopReq()), Message.PROTOCOL);
     }
 
     @Override
@@ -132,6 +147,10 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
                 }
                 break;
 
+            case Message.TIME:
+
+                break;
+
             default:
                 break;
         }
@@ -139,12 +158,13 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
 
     @Override
     public void onException(NettyConnection conn, Throwable cause) {
+        Log.d("error", "protocol proxy onException: ");
         mListener.onError(ErrorCode.NETWORK_ERROR, cause.getMessage());
     }
 
-    private void sendRequest(String request) {
+    private void sendRequest(String request, int type) {
         byte[] bytes = request.getBytes();
-        Message msg = new Message((byte) Message.PROTOCOL, bytes);
+        Message msg = new Message((byte) type, bytes);
         mConnection.write(msg);
     }
 

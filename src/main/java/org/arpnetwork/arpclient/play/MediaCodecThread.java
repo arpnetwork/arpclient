@@ -48,6 +48,7 @@ abstract class MediaCodecThread implements Runnable {
 
     /**
      * Start media codec thread
+     *
      * @param surface For video render
      */
     public synchronized void start(Surface surface) {
@@ -80,6 +81,7 @@ abstract class MediaCodecThread implements Runnable {
 
     /**
      * Enqueue media packet for codec
+     *
      * @param packet Media packet for codec
      */
     public synchronized void putPacket(AVPacket packet) {
