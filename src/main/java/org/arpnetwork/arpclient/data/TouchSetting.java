@@ -15,12 +15,13 @@
  */
 package org.arpnetwork.arpclient.data;
 
-import android.content.Context;
 import android.graphics.Point;
-import android.util.DisplayMetrics;
-import android.view.WindowManager;
+import android.util.Size;
 
 public class TouchSetting {
+    private static final int DEFAULT_PRESSURE = 50;
+    private static final int DEFAULT_MAJOR = 5;
+    private static final int DEFAULT_MINOR = 5;
     int contacts;
     int x;
     int y;
@@ -28,72 +29,122 @@ public class TouchSetting {
     int major;
     int minor;
 
+    Size screenSize;
+
     double PercentX;
     double PercentY;
 
-    public int getPressure() {
-        return pressure;
-    }
-
-    public int getMajor() {
-        return major;
-    }
-
-    public int getMinor() {
-        return minor;
+    public void setScreenSize(Size size) {
+        screenSize = size;
     }
 
     /**
      * Get transformed point for touch command,
-     * affected by screen touch event and orientation.
+     * affected by screen touch event, orientation and screen size.
      *
      * @param originX     touch event X
      * @param originY     touch event Y
-     * @param context
      * @param isLandscape screen orientation, true for landscape
      * @return
      */
-    public Point getTransformedPoint(float originX, float originY, Context context, boolean isLandscape) {
+    public Point getTransformedPoint(float originX, float originY, boolean isLandscape) {
         int transformedX = 0;
         int transformedY = 0;
         if (isLandscape) {
-            transformedX = (int) ((getScreenHeight(context) - originY) / getPercentY(context));
-            transformedY = (int) (originX / getPercentX(context));
+            transformedX = (int) ((getScreenHeight() - originY) / getPercentY());
+            transformedY = (int) (originX / getPercentX());
         } else {
-            transformedX = (int) (originX / getPercentX(context));
-            transformedY = (int) (originY / getPercentY(context));
+            transformedX = (int) (originX / getPercentX());
+            transformedY = (int) (originY / getPercentY());
         }
         return new Point(transformedX, transformedY);
     }
 
-    private double getPercentX(Context context) {
+    /**
+     * Get transformed value of pressure for touch command,
+     * affected by screen touch event.
+     *
+     * @param eventPressure
+     * @return
+     */
+    public int getTransformedPressure(float eventPressure) {
+        int result = 0;
+
+        if (pressure != 0) {
+            if (eventPressure == 1) {
+                result = DEFAULT_PRESSURE;
+            } else {
+                result = (int) (eventPressure * pressure);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Get transformed value of touch major for touch command,
+     * affected by screen touch event.
+     *
+     * @param eventTouchMajor
+     * @return
+     */
+    public int getTransformedTouchMajor(float eventTouchMajor) {
+        int result = 0;
+
+        if (major != 0) {
+            if (eventTouchMajor == 0) {
+                result = DEFAULT_MAJOR;
+            } else {
+                result = Math.min((int) eventTouchMajor, major);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Get transformed value of touch minor for touch command,
+     * affected by screen touch event.
+     *
+     * @param eventTouchMinor
+     * @return
+     */
+    public int getTransformedTouchMinor(float eventTouchMinor) {
+        int result = 0;
+
+        if (minor != 0) {
+            if (eventTouchMinor == 0) {
+                result = DEFAULT_MINOR;
+            } else {
+                result = Math.min((int) eventTouchMinor, minor);
+            }
+        }
+
+        return result;
+    }
+
+    private double getPercentX() {
         if (x == 0) {
             x = 32767;
         }
-        int width = getScreenWidth(context);
+        int width = getScreenWidth();
         return (double) width / x;
     }
 
-    private double getPercentY(Context context) {
+    private double getPercentY() {
         if (y == 0) {
             y = 32767;
         }
-        int height = getScreenHeight(context);
+        int height = getScreenHeight();
         return (double) height / y;
     }
 
-    private static int getScreenWidth(Context context) {
-        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        DisplayMetrics dm = new DisplayMetrics();
-        wm.getDefaultDisplay().getMetrics(dm);
-        return dm.widthPixels;
+    private int getScreenWidth() {
+        return screenSize.getWidth();
     }
 
-    private static int getScreenHeight(Context context) {
-        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        DisplayMetrics dm = new DisplayMetrics();
-        wm.getDefaultDisplay().getMetrics(dm);
-        return dm.heightPixels;
+    private int getScreenHeight() {
+        return screenSize.getHeight();
     }
 
     @Override

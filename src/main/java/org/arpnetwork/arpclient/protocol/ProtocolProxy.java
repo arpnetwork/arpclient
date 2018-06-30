@@ -16,7 +16,6 @@
 package org.arpnetwork.arpclient.protocol;
 
 import android.os.Handler;
-import android.util.Log;
 
 import com.google.gson.Gson;
 
@@ -33,6 +32,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 
 public class ProtocolProxy implements NettyConnection.ConnectionListener {
+    private static final int HEARTBEAT_INTERVAL = 5000;
+
     private Gson mGson;
     private NettyConnection mConnection;
     private OnProtocolListener mListener;
@@ -158,7 +159,6 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
 
     @Override
     public void onException(NettyConnection conn, Throwable cause) {
-        Log.d("error", "protocol proxy onException: ");
         mListener.onError(ErrorCode.NETWORK_ERROR, cause.getMessage());
     }
 
@@ -196,7 +196,7 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
             public void run() {
                 sendHeartbeat();
             }
-        }, 5000);
+        }, HEARTBEAT_INTERVAL);
     }
 }
 

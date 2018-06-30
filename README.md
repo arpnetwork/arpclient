@@ -1,8 +1,6 @@
 # ARP Client
-ARP Client is a tool for Android devices to use the app rendering power of other smart devices.
 
-Get remote device screen.
-Interact with remote devices.
+ARP Client is a tool for Android devices to use the app rendering power of other smart devices.
 
 ## Usage
 
@@ -18,6 +16,7 @@ dependencies {
     implementation project(':arpclient')
 }
 ```
+
 ### Init SDK
 Init SDK in ARPApplication.java.
 ```java
@@ -49,21 +48,25 @@ Set permission and application config in AndroidMenifest.xml.
 </application>
 ```
 
-### Get remote device screen
-Create APRClient.
+### Get remote device
+
+Init APRClient with ARPClientListener.
+Set TextureView and device Uri.
 ```java
 private ARPClient mARPClient;
 
 private void init() {
-    // init ARPClient
-    mARPClient = new ARPClient(getContext(), this);
-}
-
-public void setDataSource(Uri uri) {
+    // init ARPClient with listener
+    mARPClient = new ARPClient(this);
+    // set TextureView for ARPClient to render video and catch touch events
+    mARPClient.setSurfaceView(surfaceView);
     // set remote device uri for connection
-    mARPClient.start(uri);
+    mARPClient.start(remoteDeviceUri);
 }
+```
 
+ARPClient listener.
+```java
 @Override
 public void onPrepared() {
     // do something when is ready for play
@@ -83,36 +86,8 @@ public void onError(int errorCode, String msg) {
     // do something when errors occurred
 }
 ```
-Set surface for video to render in SurfaceTextureListener.
-```java
-@Override
-public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-    mARPClient.setSurface(new Surface(surfaceTexture));
-    mARPClient.reconnect();
-}
 
-@Override
-public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-    mARPClient.disconnect();
-    if (surfaceTexture != null) {
-        surfaceTexture.release();
-    }
-    return true;
-}
-```
-### Interact with remote device
-
-Set local screen orientation.
+Stop connection.
 ```java
-@Override
-public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-    mARPClient.setLandscape(width > height);
-}
-```
-Pass MotionEvent to ARPClient when touched.
-```java
-@Override
-public boolean onTouchEvent(MotionEvent event) {
-    return mARPClient.onTouchEvent(event);
-}
+mARPClient.stop();
 ```

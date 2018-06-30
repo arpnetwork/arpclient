@@ -15,7 +15,6 @@
  */
 package org.arpnetwork.arpclient.touch;
 
-import android.content.Context;
 import android.view.MotionEvent;
 
 import org.arpnetwork.arpclient.data.TouchSetting;
@@ -40,7 +39,6 @@ public class TouchHandler {
     private boolean mLandscape;
 
     private TouchSetting mTouchSetting;
-    private Context mContext;
 
     private OnTouchInfoListener mListener;
 
@@ -58,10 +56,8 @@ public class TouchHandler {
      * Set remote device touch setting for transform.
      *
      * @param touchSetting
-     * @param context
      */
-    public void setTouchSetting(TouchSetting touchSetting, Context context) {
-        mContext = context;
+    public void setTouchSetting(TouchSetting touchSetting) {
         mTouchSetting = touchSetting;
     }
 
@@ -103,9 +99,11 @@ public class TouchHandler {
                 clearStringBuilder();
 
                 mBuilder.append(String.format(Locale.US, "d %d %d %d %d %d %d \n", pointerId,
-                        mTouchSetting.getTransformedPoint(x, y, mContext, mLandscape).x,
-                        mTouchSetting.getTransformedPoint(x, y, mContext, mLandscape).y,
-                        getPressure(ev, actionIndex), getTouchMajor(ev, 0), getTouchMinor(ev, 0)));
+                        mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
+                        mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
+                        mTouchSetting.getTransformedPressure(ev.getPressure(actionIndex)),
+                        mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(0)),
+                        mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(0))));
                 mBuilder.append("c\n");
 
                 saveInitialMotion(x, y, pointerId);
@@ -123,11 +121,11 @@ public class TouchHandler {
                 clearStringBuilder();
 
                 mBuilder.append(String.format(Locale.US, "d %d %d %d %d %d %d \n", pointerId,
-                        mTouchSetting.getTransformedPoint(x, y, mContext, mLandscape).x,
-                        mTouchSetting.getTransformedPoint(x, y, mContext, mLandscape).y,
-                        getPressure(ev, actionIndex), getTouchMajor(ev, actionIndex),
-                        getTouchMinor(ev, actionIndex)));
-
+                        mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
+                        mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
+                        mTouchSetting.getTransformedPressure(ev.getPressure(actionIndex)),
+                        mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(actionIndex)),
+                        mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(actionIndex))));
                 mBuilder.append("c\n");
 
                 saveInitialMotion(x, y, pointerId);
@@ -147,10 +145,11 @@ public class TouchHandler {
                     final float y = ev.getY(i);
 
                     mBuilder.append(String.format(Locale.US, "m %d %d %d %d %d %d \n", id,
-                            mTouchSetting.getTransformedPoint(x, y, mContext, mLandscape).x,
-                            mTouchSetting.getTransformedPoint(x, y, mContext, mLandscape).y,
-                            getPressure(ev, actionIndex), getTouchMajor(ev, i),
-                            getTouchMinor(ev, i)));
+                            mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
+                            mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
+                            mTouchSetting.getTransformedPressure(ev.getPressure(actionIndex)),
+                            mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(i)),
+                            mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(i))));
                     mBuilder.append("c\n");
                 }
 
@@ -277,53 +276,5 @@ public class TouchHandler {
 
             mLastPointerId[pointerId] = pointerId;
         }
-    }
-
-    private int getPressure(MotionEvent ev, int pointerIndex) {
-        int pressure = mTouchSetting.getPressure();
-        float evPressure = ev.getPressure(pointerIndex);
-        int result = 0;
-
-        if (pressure != 0) {
-            if (evPressure == 1) {
-                result = 50;
-            } else {
-                result = (int) (evPressure * pressure);
-            }
-        }
-
-        return result;
-    }
-
-    private int getTouchMajor(MotionEvent ev, int pointerIndex) {
-        int touchMajor = mTouchSetting.getMajor();
-        int evTouchMajor = (int) ev.getTouchMajor(pointerIndex);
-        int result = 0;
-
-        if (touchMajor != 0) {
-            if (evTouchMajor == 0) {
-                result = 5;
-            } else {
-                result = Math.min(evTouchMajor, touchMajor);
-            }
-        }
-
-        return result;
-    }
-
-    private int getTouchMinor(MotionEvent ev, int id) {
-        int touchMinor = mTouchSetting.getMinor();
-        int evTouchMinor = (int) ev.getTouchMinor(id);
-        int result = 0;
-
-        if (touchMinor != 0) {
-            if (evTouchMinor == 0) {
-                result = 5;
-            } else {
-                result = Math.min(evTouchMinor, touchMinor);
-            }
-        }
-
-        return result;
     }
 }

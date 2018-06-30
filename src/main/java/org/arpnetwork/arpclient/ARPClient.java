@@ -16,11 +16,17 @@
 package org.arpnetwork.arpclient;
 
 import android.content.Context;
+import android.graphics.Matrix;
+import android.graphics.SurfaceTexture;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.util.Size;
 import android.view.MotionEvent;
 import android.view.Surface;
+import android.view.TextureView;
+import android.view.View;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -36,8 +42,8 @@ import org.arpnetwork.arpclient.protocol.ProtocolProxy;
 import org.arpnetwork.arpclient.touch.TouchHandler;
 import org.arpnetwork.arpclient.util.PreferenceManager;
 
-public class ARPClient
-        implements TouchHandler.OnTouchInfoListener, ProtocolProxy.OnProtocolListener {
+public class ARPClient implements TouchHandler.OnTouchInfoListener,
+        ProtocolProxy.OnProtocolListener, TextureView.SurfaceTextureListener, View.OnTouchListener {
     private static final int TOUCH_SETTING = 100;
     private static final int VIDEO_SETTING = 101;
 
@@ -47,7 +53,8 @@ public class ARPClient
     private ProtocolProxy mProtocolProxy;
     private Handler mHandler;
     private Gson mGson;
-    private Context mContext;
+    private TextureView mSurfaceView;
+    private Size mViewSize;
 
     private Uri mUri;
     private boolean mReconnected;
@@ -70,7 +77,7 @@ public class ARPClient
         /**
          * Error occurred.
          *
-         * @param code error code, see {@link org.arpnetwork.arpclient.data.ErrorCode   }
+         * @param code error code, see {@link org.arpnetwork.arpclient.data.ErrorCode}
          * @param msg
          */
         void onError(int code, String msg);
@@ -84,26 +91,31 @@ public class ARPClient
         PreferenceManager.fini();
     }
 
-    public ARPClient(Context context, ARPClientListener listener) {
+    public ARPClient(ARPClientListener listener) {
         mMediaPlayer = new MediaPlayer();
         mTouchHandler = new TouchHandler(this);
         mProtocolProxy = new ProtocolProxy(this);
-        mContext = context;
         mListener = listener;
         mHandler = new Handler();
         mGson = new Gson();
     }
 
     /**
-     * Set surface for video to render on
+     * Set surface view for video to render on
      *
-     * @param surface for render
+     * @param view TextureView for render
      */
-    public void setSurface(Surface surface) {
-        mMediaPlayer.setSurface(surface);
-        if (mConnected) {
-            mMediaPlayer.start();
+    public void setSurfaceView(TextureView view) {
+        mSurfaceView = view;
+
+        mSurfaceView.setFocusable(true);
+        mSurfaceView.setKeepScreenOn(true);
+        mSurfaceView.setSurfaceTextureListener(this);
+        if (!Build.MANUFACTURER.equalsIgnoreCase("huawei")) {
+            //To fix touch exception: ACTION_DOWN has not handle
+            mSurfaceView.setOnClickListener(null);
         }
+        mSurfaceView.setOnTouchListener(this);
     }
 
     /**
@@ -173,16 +185,6 @@ public class ARPClient
         mTouchHandler.setLandscape(isLandscape);
     }
 
-    /**
-     * Set touch events for remote device.
-     *
-     * @param ev event received from screen
-     * @return touch available
-     */
-    public boolean onTouchEvent(MotionEvent ev) {
-        return mTouchHandler.onTouchEvent(ev);
-    }
-
     @Override
     public void onConnected() {
         mHandler.post(new Runnable() {
@@ -226,7 +228,8 @@ public class ARPClient
                     } catch (JsonSyntaxException e) {
                         return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
                     }
-                    mTouchHandler.setTouchSetting(touchSetting, mContext);
+                    touchSetting.setScreenSize(mViewSize);
+                    mTouchHandler.setTouchSetting(touchSetting);
                     break;
 
                 case VIDEO_SETTING:
@@ -270,6 +273,44 @@ public class ARPClient
         mProtocolProxy.sendTouchEvent(touchInfo);
     }
 
+    @Override
+    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+        setTransform(width, height);
+
+        setSurface(new Surface(surfaceTexture));
+        reconnect();
+    }
+
+    @Override
+    public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
+        setTransform(width, height);
+    }
+
+    @Override
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+        disconnect();
+        if (surfaceTexture != null) {
+            surfaceTexture.release();
+        }
+        return true;
+    }
+
+    @Override
+    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+    }
+
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        return mTouchHandler.onTouchEvent(motionEvent);
+    }
+
+    private void setSurface(Surface surface) {
+        mMediaPlayer.setSurface(surface);
+        if (mConnected) {
+            mMediaPlayer.start();
+        }
+    }
+
     private void open() {
         mMediaPlayer.initThread();
         mClosed = false;
@@ -294,6 +335,20 @@ public class ARPClient
             if (mListener != null) {
                 mListener.onError(code, msg);
             }
+        }
+    }
+
+    private void setTransform(int width, int height) {
+        mViewSize = new Size(width, height);
+        if (width > height) {
+            Matrix matrix = new Matrix();
+            matrix.preScale(height * 1.0f / width, width * 1.0f / height, width / 2, height / 2);
+            matrix.postRotate(-90, width / 2, height / 2);
+            mSurfaceView.setTransform(matrix);
+
+            setLandscape(true);
+        } else {
+            setLandscape(false);
         }
     }
 }
