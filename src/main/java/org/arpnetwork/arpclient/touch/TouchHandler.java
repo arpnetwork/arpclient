@@ -19,23 +19,9 @@ import android.view.MotionEvent;
 
 import org.arpnetwork.arpclient.data.TouchSetting;
 
-import java.util.Arrays;
 import java.util.Locale;
 
 public class TouchHandler {
-    /**
-     * A null/invalid pointer ID.
-     */
-    public static final int INVALID_POINTER = -1;
-
-    // Last known position/pointer tracking
-    private int mActivePointerId = INVALID_POINTER;
-    private float[] mInitialMotionX;
-    private float[] mInitialMotionY;
-    private float[] mLastMotionX;
-    private float[] mLastMotionY;
-    private int[] mLastPointerId;
-
     private boolean mLandscape;
 
     private TouchSetting mTouchSetting;
@@ -84,12 +70,6 @@ public class TouchHandler {
         final int action = ev.getActionMasked();
         final int actionIndex = ev.getActionIndex();
 
-        if (action == MotionEvent.ACTION_DOWN) {
-            // Reset things for a new event stream, just in case we didn't get
-            // the whole previous stream.
-            cancel();
-        }
-
         switch (action) {
             case MotionEvent.ACTION_DOWN: {
                 final float x = ev.getX();
@@ -97,17 +77,7 @@ public class TouchHandler {
                 final int pointerId = ev.getPointerId(0);
 
                 clearStringBuilder();
-
-                mBuilder.append(String.format(Locale.US, "d %d %d %d %d %d %d \n", pointerId,
-                        mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
-                        mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
-                        mTouchSetting.getTransformedPressure(ev.getPressure(actionIndex)),
-                        mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(0)),
-                        mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(0))));
-                mBuilder.append("c\n");
-
-                saveInitialMotion(x, y, pointerId);
-                mActivePointerId = pointerId;
+                appendTouchInfoString(pointerId, actionIndex, "d", x, y, ev);
 
                 mListener.onTouchInfo(mBuilder.toString());
                 break;
@@ -119,72 +89,41 @@ public class TouchHandler {
                 final float y = ev.getY(actionIndex);
 
                 clearStringBuilder();
-
-                mBuilder.append(String.format(Locale.US, "d %d %d %d %d %d %d \n", pointerId,
-                        mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
-                        mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
-                        mTouchSetting.getTransformedPressure(ev.getPressure(actionIndex)),
-                        mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(actionIndex)),
-                        mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(actionIndex))));
-                mBuilder.append("c\n");
-
-                saveInitialMotion(x, y, pointerId);
-                mLastPointerId[pointerId] = pointerId;
+                appendTouchInfoString(pointerId, actionIndex, "d", x, y, ev);
 
                 mListener.onTouchInfo(mBuilder.toString());
                 break;
             }
 
             case MotionEvent.ACTION_MOVE: {
-                clearStringBuilder();
-
                 final int pointerCount = ev.getPointerCount();
+
+                clearStringBuilder();
                 for (int i = 0; i < pointerCount; i++) {
-                    final int id = ev.getPointerId(i);
                     final float x = ev.getX(i);
                     final float y = ev.getY(i);
 
-                    mBuilder.append(String.format(Locale.US, "m %d %d %d %d %d %d \n", id,
-                            mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
-                            mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
-                            mTouchSetting.getTransformedPressure(ev.getPressure(actionIndex)),
-                            mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(i)),
-                            mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(i))));
-                    mBuilder.append("c\n");
+                    appendTouchInfoString(ev.getPointerId(i), actionIndex, "m", x, y, ev);
                 }
 
                 mListener.onTouchInfo(mBuilder.toString());
-                saveLastMotion(ev);
                 break;
             }
 
             case MotionEvent.ACTION_POINTER_UP: {
                 clearStringBuilder();
-
-                final int pointerId = ev.getPointerId(actionIndex);
-                for (int i = 0; i < mLastPointerId.length; i++) {
-                    if (i != mActivePointerId) {
-                        mBuilder.append(String.format(Locale.US, "u %d \n", i));
-                        mBuilder.append("c\n");
-                    }
-                }
+                appendUpString(ev.getPointerId(actionIndex));
 
                 mListener.onTouchInfo(mBuilder.toString());
-                clearMotionHistory(pointerId);
                 break;
             }
 
-            case MotionEvent.ACTION_UP: {
-                clearStringBuilder();
-                appendUpString();
-                mListener.onTouchInfo(mBuilder.toString());
-
-                cancel();
-                break;
-            }
-
+            case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
-                cancel();
+                clearStringBuilder();
+                appendUpString(ev.getPointerId(0));
+
+                mListener.onTouchInfo(mBuilder.toString());
                 break;
             }
         }
@@ -195,86 +134,18 @@ public class TouchHandler {
         mBuilder.setLength(0);
     }
 
-    private void appendUpString() {
-        if (mActivePointerId != INVALID_POINTER) {
-            mBuilder.append(String.format(Locale.US, "u %d \n", mActivePointerId));
-            mBuilder.append("c\n");
-        }
+    private void appendTouchInfoString(int id, int index, String type, float x, float y, MotionEvent ev) {
+        mBuilder.append(String.format(Locale.US, "%s %d %d %d %d %d %d \n", type, id,
+                mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
+                mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
+                mTouchSetting.getTransformedPressure(ev.getPressure(index)),
+                mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(0)),
+                mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(0))));
+        mBuilder.append("c\n");
     }
 
-    private void cancel() {
-        clearStringBuilder();
-
-        mActivePointerId = INVALID_POINTER;
-        clearMotionHistory();
-    }
-
-    private void clearMotionHistory() {
-        if (mInitialMotionX == null) {
-            return;
-        }
-        Arrays.fill(mInitialMotionX, 0);
-        Arrays.fill(mInitialMotionY, 0);
-        Arrays.fill(mLastMotionX, 0);
-        Arrays.fill(mLastMotionY, 0);
-
-        Arrays.fill(mLastPointerId, 0);
-    }
-
-    private void clearMotionHistory(int pointerId) {
-        if (mInitialMotionX == null) {
-            return;
-        }
-        mInitialMotionX[pointerId] = 0;
-        mInitialMotionY[pointerId] = 0;
-        mLastMotionX[pointerId] = 0;
-        mLastMotionY[pointerId] = 0;
-
-        mLastPointerId[pointerId] = 0;
-    }
-
-    private void ensureMotionHistorySizeForId(int pointerId) {
-        if (mInitialMotionX == null || mInitialMotionX.length <= pointerId) {
-            float[] imx = new float[pointerId + 1];
-            float[] imy = new float[pointerId + 1];
-            float[] lmx = new float[pointerId + 1];
-            float[] lmy = new float[pointerId + 1];
-            int[] iit = new int[pointerId + 1];
-
-            if (mInitialMotionX != null) {
-                System.arraycopy(mInitialMotionX, 0, imx, 0, mInitialMotionX.length);
-                System.arraycopy(mInitialMotionY, 0, imy, 0, mInitialMotionY.length);
-                System.arraycopy(mLastMotionX, 0, lmx, 0, mLastMotionX.length);
-                System.arraycopy(mLastMotionY, 0, lmy, 0, mLastMotionY.length);
-
-                System.arraycopy(mLastPointerId, 0, iit, 0, mLastPointerId.length);
-            }
-
-            mInitialMotionX = imx;
-            mInitialMotionY = imy;
-            mLastMotionX = lmx;
-            mLastMotionY = lmy;
-
-            mLastPointerId = iit;
-        }
-    }
-
-    private void saveInitialMotion(float x, float y, int pointerId) {
-        ensureMotionHistorySizeForId(pointerId);
-        mInitialMotionX[pointerId] = mLastMotionX[pointerId] = x;
-        mInitialMotionY[pointerId] = mLastMotionY[pointerId] = y;
-    }
-
-    private void saveLastMotion(MotionEvent ev) {
-        final int pointerCount = ev.getPointerCount();
-        for (int i = 0; i < pointerCount; i++) {
-            final int pointerId = ev.getPointerId(i);
-            final float x = ev.getX(i);
-            final float y = ev.getY(i);
-            mLastMotionX[pointerId] = x;
-            mLastMotionY[pointerId] = y;
-
-            mLastPointerId[pointerId] = pointerId;
-        }
+    private void appendUpString(int id) {
+        mBuilder.append(String.format(Locale.US, "u %d \n", id));
+        mBuilder.append("c\n");
     }
 }
