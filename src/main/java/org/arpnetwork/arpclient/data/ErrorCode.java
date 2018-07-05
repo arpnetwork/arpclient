@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.data;
 
 public class ErrorCode {
-    public static final int NETWORK_ERROR = -1;
-
+    public static final int ERROR_NETWORK = -1;
     public static final int ERROR_PROTOCOL_TOUCH_SETTING = -10001;
     public static final int ERROR_PROTOCOL_VIDEO_INFO = -10002;
 }

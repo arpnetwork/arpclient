@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.play;
 
 import android.os.Handler;
@@ -22,6 +23,7 @@ import org.arpnetwork.arpclient.data.AVPacket;
 
 public class MediaPlayer {
     private VideoCodecThread mVideoThread;
+
     private Surface mSurface;
 
     private Handler mHandler;
@@ -46,6 +48,7 @@ public class MediaPlayer {
      */
     public void initThread() {
         mVideoThread = new VideoCodecThread();
+        mVideoThreadStart = false;
     }
 
     /**

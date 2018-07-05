@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.util;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
 
 public class PreferenceManager {
+    private static final String NAME = "ARP";
+
     private static PreferenceManager sInstance;
+
     private SharedPreferences mSharedPreferences;
 
     private PreferenceManager(Context context) {
-        mSharedPreferences = context.getSharedPreferences("arp_preferences", Context.MODE_PRIVATE);
+        mSharedPreferences = context.getSharedPreferences(NAME, Context.MODE_PRIVATE);
     }
 
     public static PreferenceManager getInstance() {
@@ -40,27 +43,19 @@ public class PreferenceManager {
     }
 
     public void putInt(String key, int value) {
-        Editor editor = mSharedPreferences.edit();
-        editor.putInt(key, value);
-        editor.commit();
+        mSharedPreferences.edit().putInt(key, value).commit();
     }
 
     public void putString(String key, String value) {
-        Editor editor = mSharedPreferences.edit();
-        editor.putString(key, value);
-        editor.commit();
+        mSharedPreferences.edit().putString(key, value).commit();
     }
 
     public void putBoolean(String key, boolean value) {
-        Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(key, value);
-        editor.commit();
+        mSharedPreferences.edit().putBoolean(key, value).commit();
     }
 
     public void putLong(String key, long value) {
-        Editor editor = mSharedPreferences.edit();
-        editor.putLong(key, value);
-        editor.commit();
+        mSharedPreferences.edit().putLong(key, value).commit();
     }
 
     public int getInt(String key) {

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.play;
 
 import android.media.MediaCodec;
@@ -26,14 +27,13 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
 
 abstract class MediaCodecThread implements Runnable {
-
     private Thread mCodecThread;
     private MediaCodec mMediaCodec;
 
     private int mPacketQueueCapacity;
     private boolean mStopped;
 
-    private final LinkedBlockingQueue<AVPacket> mPacketQueue = new LinkedBlockingQueue<AVPacket>();
+    private LinkedBlockingQueue<AVPacket> mPacketQueue = new LinkedBlockingQueue<AVPacket>();
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
 
     public MediaCodecThread() {
@@ -101,7 +101,6 @@ abstract class MediaCodecThread implements Runnable {
                 while (mPacketQueue.size() > mPacketQueueCapacity) {
                     packet = mPacketQueue.take();
                 }
-
                 render(packet);
             } catch (InterruptedException e) {
             } catch (Exception e) {

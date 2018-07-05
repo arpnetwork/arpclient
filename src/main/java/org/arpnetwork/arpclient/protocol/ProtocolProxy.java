@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.protocol;
 
 import android.os.Handler;
@@ -149,7 +150,7 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
                 break;
 
             case Message.TIME:
-
+                // FIXME
                 break;
 
             default:
@@ -159,13 +160,24 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
 
     @Override
     public void onException(NettyConnection conn, Throwable cause) {
-        mListener.onError(ErrorCode.NETWORK_ERROR, cause.getMessage());
+        mListener.onError(ErrorCode.ERROR_NETWORK, cause.getMessage());
     }
 
     private void sendRequest(String request, int type) {
         byte[] bytes = request.getBytes();
         Message msg = new Message((byte) type, bytes);
         mConnection.write(msg);
+    }
+
+    private void sendHeartbeat() {
+        Message msg = new Message((byte) Message.HEARTBEAT);
+        mConnection.write(msg);
+        mHeartbeatHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                sendHeartbeat();
+            }
+        }, HEARTBEAT_INTERVAL);
     }
 
     private static AVPacket getPacket(ByteBuffer data) {
@@ -186,17 +198,6 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
         } catch (Exception ex) {
             return "";
         }
-    }
-
-    private void sendHeartbeat() {
-        Message msg = new Message((byte) Message.HEARTBEAT);
-        mConnection.write(msg);
-        mHeartbeatHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                sendHeartbeat();
-            }
-        }, HEARTBEAT_INTERVAL);
     }
 }
 

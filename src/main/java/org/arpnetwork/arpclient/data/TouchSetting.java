@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.data;
 
 import android.graphics.Point;
@@ -22,20 +23,18 @@ public class TouchSetting {
     private static final int DEFAULT_PRESSURE = 50;
     private static final int DEFAULT_MAJOR = 5;
     private static final int DEFAULT_MINOR = 5;
-    int contacts;
-    int x;
-    int y;
-    int pressure;
-    int major;
-    int minor;
 
-    Size screenSize;
+    private int contacts;
+    private int x;
+    private int y;
+    private int pressure;
+    private int major;
+    private int minor;
 
-    double PercentX;
-    double PercentY;
+    private Size mScreenSize;
 
     public void setScreenSize(Size size) {
-        screenSize = size;
+        mScreenSize = size;
     }
 
     /**
@@ -48,14 +47,11 @@ public class TouchSetting {
      * @return
      */
     public Point getTransformedPoint(float originX, float originY, boolean isLandscape) {
-        int transformedX = 0;
-        int transformedY = 0;
+        int transformedX = (int) (originX / getPercentX());
+        int transformedY = (int) (originY / getPercentY());
         if (isLandscape) {
             transformedX = (int) ((getScreenHeight() - originY) / getPercentY());
             transformedY = (int) (originX / getPercentX());
-        } else {
-            transformedX = (int) (originX / getPercentX());
-            transformedY = (int) (originY / getPercentY());
         }
         return new Point(transformedX, transformedY);
     }
@@ -71,7 +67,7 @@ public class TouchSetting {
         int result = 0;
 
         if (pressure != 0) {
-            if (eventPressure == 1) {
+            if (eventPressure == 1.0f) {
                 result = DEFAULT_PRESSURE;
             } else {
                 result = (int) (eventPressure * pressure);
@@ -92,7 +88,7 @@ public class TouchSetting {
         int result = 0;
 
         if (major != 0) {
-            if (eventTouchMajor == 0) {
+            if (eventTouchMajor == 0.0f) {
                 result = DEFAULT_MAJOR;
             } else {
                 result = Math.min((int) eventTouchMajor, major);
@@ -124,33 +120,25 @@ public class TouchSetting {
     }
 
     private double getPercentX() {
-        if (x == 0) {
-            x = 32767;
-        }
-        int width = getScreenWidth();
-        return (double) width / x;
+        return (double) getScreenWidth() / x;
     }
 
     private double getPercentY() {
-        if (y == 0) {
-            y = 32767;
-        }
-        int height = getScreenHeight();
-        return (double) height / y;
+        return (double) getScreenHeight() / y;
     }
 
     private int getScreenWidth() {
-        return screenSize.getWidth();
+        return mScreenSize.getWidth();
     }
 
     private int getScreenHeight() {
-        return screenSize.getHeight();
+        return mScreenSize.getHeight();
     }
 
     @Override
     public String toString() {
         return "TouchSetting [contacts=" + contacts + ", x=" + x + ", y=" + y + ", pressure="
-                + pressure + ", major=" + major + ", minor=" + minor
-                + ", PercentX=" + PercentX + ", PercentY=" + PercentY + "]";
+                + pressure + ", major=" + major + ", minor=" + minor + ", screen width:"
+                + getScreenWidth() + ", screen height:" + getScreenHeight() + "]";
     }
 }

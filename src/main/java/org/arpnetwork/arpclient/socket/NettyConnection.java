@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.socket;
 
 import org.arpnetwork.arpclient.data.Message;
@@ -118,6 +119,7 @@ public class NettyConnection {
         mChannelFuture.addListener(mChannelFutureListener);
     }
 
+
     /**
      * Close socket
      */
@@ -190,7 +192,6 @@ public class NettyConnection {
     }
 
     private static class MessageDecoder extends ReplayingDecoder<Void> {
-
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
             out.add(Message.readFrom(in));

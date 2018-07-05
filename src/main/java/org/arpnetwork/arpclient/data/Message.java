@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.data;
 
 import java.nio.ByteBuffer;
@@ -60,18 +61,18 @@ public class Message {
         }
 
         int type = buf.readByte();
-
         ByteBuf body = buf.readBytes(size - 1);
         return new Message(type, body.array());
     }
 
     public void writeTo(ByteBuf buf) {
         if (mType == HEARTBEAT) {
-            buf.writeInt(0); //heartbeat
+            buf.writeInt(0); // heartbeat
         } else {
-            buf.writeInt(1 + mData.length); //size = (byte)type size + data size
-            buf.writeByte((byte) mType); //type
-            buf.writeBytes(mData); //data
+            // size = (byte)type size + data size
+            buf.writeInt(1 + mData.length);
+            buf.writeByte((byte) mType);
+            buf.writeBytes(mData);
         }
     }
 }

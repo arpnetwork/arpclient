@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.data;
 
 public class ConnectReq extends ProtocolPacket<ConnectData> {
@@ -23,6 +24,6 @@ public class ConnectReq extends ProtocolPacket<ConnectData> {
 
         data = new ConnectData();
         data.session = sessionId;
-        data.quality = Quality.getQuality();
+        data.quality = Quality.get();
     }
 }

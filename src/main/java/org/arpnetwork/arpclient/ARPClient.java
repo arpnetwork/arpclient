@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient;
 
 import android.content.Context;
@@ -42,21 +43,22 @@ import org.arpnetwork.arpclient.protocol.ProtocolProxy;
 import org.arpnetwork.arpclient.touch.TouchHandler;
 import org.arpnetwork.arpclient.util.PreferenceManager;
 
-public class ARPClient implements TouchHandler.OnTouchInfoListener,
-        ProtocolProxy.OnProtocolListener, TextureView.SurfaceTextureListener, View.OnTouchListener {
+public class ARPClient {
     private static final int TOUCH_SETTING = 100;
     private static final int VIDEO_SETTING = 101;
 
     private MediaPlayer mMediaPlayer;
+    private TextureView mSurfaceView;
     private TouchHandler mTouchHandler;
-    private ARPClientListener mListener;
     private ProtocolProxy mProtocolProxy;
+
+    private ARPClientListener mListener;
     private Handler mHandler;
     private Gson mGson;
-    private TextureView mSurfaceView;
-    private Size mViewSize;
 
     private Uri mUri;
+    private Size mViewSize;
+
     private boolean mReconnected;
     private boolean mClosed;
     private boolean mConnected;
@@ -93,8 +95,8 @@ public class ARPClient implements TouchHandler.OnTouchInfoListener,
 
     public ARPClient(ARPClientListener listener) {
         mMediaPlayer = new MediaPlayer();
-        mTouchHandler = new TouchHandler(this);
-        mProtocolProxy = new ProtocolProxy(this);
+        mTouchHandler = new TouchHandler(mTouchHandlerListener);
+        mProtocolProxy = new ProtocolProxy(mProtocolProxyListener);
         mListener = listener;
         mHandler = new Handler();
         mGson = new Gson();
@@ -110,12 +112,12 @@ public class ARPClient implements TouchHandler.OnTouchInfoListener,
 
         mSurfaceView.setFocusable(true);
         mSurfaceView.setKeepScreenOn(true);
-        mSurfaceView.setSurfaceTextureListener(this);
+        mSurfaceView.setSurfaceTextureListener(mSurfaceTextureListener);
         if (!Build.MANUFACTURER.equalsIgnoreCase("huawei")) {
-            //To fix touch exception: ACTION_DOWN has not handle
+            // Fix touch exception: ACTION_DOWN has not handle
             mSurfaceView.setOnClickListener(null);
         }
-        mSurfaceView.setOnTouchListener(this);
+        mSurfaceView.setOnTouchListener(mOnTouchListener);
     }
 
     /**
@@ -185,37 +187,28 @@ public class ARPClient implements TouchHandler.OnTouchInfoListener,
         mTouchHandler.setLandscape(isLandscape);
     }
 
-    @Override
-    public void onConnected() {
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (!mDisconnect) {
-                    handleConnect();
-                }
-            }
-        });
+    private void setSurface(Surface surface) {
+        mMediaPlayer.setSurface(surface);
+        if (mConnected) {
+            mMediaPlayer.start();
+        }
     }
 
-    @Override
-    public void onError(final int errorCode, final String msg) {
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (!mClosed && !mError) {
-                    handleError(errorCode, msg);
-                }
-            }
-        });
+    private void open() {
+        mMediaPlayer.initThread();
+        mClosed = false;
+        mDisconnect = false;
+        mProtocolProxy.open(mUri.getHost(), mUri.getPort());
     }
 
-    @Override
-    public void onVideoPacket(AVPacket packet) {
-        mMediaPlayer.putVideoPacket(packet);
+    private void handleConnect() {
+        mMediaPlayer.start();
+        mReconnected = false;
+        mConnected = true;
+        mProtocolProxy.sendConnectReq();
     }
 
-    @Override
-    public int onProtocolPacket(String data) {
+    private int handleProtocolPacket(String data) {
         if (!TextUtils.isEmpty(data)) {
             Result result = mGson.fromJson(data, Result.class);
 
@@ -263,71 +256,9 @@ public class ARPClient implements TouchHandler.OnTouchInfoListener,
         return 0;
     }
 
-    @Override
-    public void onClosed() {
-        mListener.onClosed();
-    }
-
-    @Override
-    public void onTouchInfo(String touchInfo) {
-        mProtocolProxy.sendTouchEvent(touchInfo);
-    }
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-        setTransform(width, height);
-
-        setSurface(new Surface(surfaceTexture));
-        reconnect();
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
-        setTransform(width, height);
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-        disconnect();
-        if (surfaceTexture != null) {
-            surfaceTexture.release();
-        }
-        return true;
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
-    }
-
-    @Override
-    public boolean onTouch(View view, MotionEvent motionEvent) {
-        return mTouchHandler.onTouchEvent(motionEvent);
-    }
-
-    private void setSurface(Surface surface) {
-        mMediaPlayer.setSurface(surface);
-        if (mConnected) {
-            mMediaPlayer.start();
-        }
-    }
-
-    private void open() {
-        mMediaPlayer.initThread();
-        mClosed = false;
-        mDisconnect = false;
-        mProtocolProxy.open(mUri.getHost(), mUri.getPort());
-    }
-
-    private void handleConnect() {
-        mMediaPlayer.start();
-        mReconnected = false;
-        mConnected = true;
-        mProtocolProxy.sendConnectReq();
-    }
-
     private void handleError(int code, String msg) {
         mConnected = false;
-        if (!mReconnected) {
+        if (!mReconnected && code == ErrorCode.ERROR_NETWORK) {
             disconnect();
             reconnect();
         } else {
@@ -351,4 +282,87 @@ public class ARPClient implements TouchHandler.OnTouchInfoListener,
             setLandscape(false);
         }
     }
+
+    private final TouchHandler.OnTouchInfoListener mTouchHandlerListener = new TouchHandler.OnTouchInfoListener() {
+        @Override
+        public void onTouchInfo(String touchInfo) {
+            mProtocolProxy.sendTouchEvent(touchInfo);
+        }
+    };
+
+    private final ProtocolProxy.OnProtocolListener mProtocolProxyListener = new ProtocolProxy.OnProtocolListener() {
+        @Override
+        public void onConnected() {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (!mDisconnect) {
+                        handleConnect();
+                    }
+                }
+            });
+        }
+
+        @Override
+        public void onError(final int code, final String msg) {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (!mClosed && !mError) {
+                        handleError(code, msg);
+                    }
+                }
+            });
+        }
+
+        @Override
+        public void onVideoPacket(AVPacket packet) {
+            mMediaPlayer.putVideoPacket(packet);
+        }
+
+        @Override
+        public int onProtocolPacket(String data) {
+            return handleProtocolPacket(data);
+        }
+
+        @Override
+        public void onClosed() {
+            mListener.onClosed();
+        }
+    };
+
+    private final TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
+        @Override
+        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+            setTransform(width, height);
+
+            setSurface(new Surface(surfaceTexture));
+            reconnect();
+        }
+
+        @Override
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
+            setTransform(width, height);
+        }
+
+        @Override
+        public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+            disconnect();
+            if (surfaceTexture != null) {
+                surfaceTexture.release();
+            }
+            return true;
+        }
+
+        @Override
+        public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+        }
+    };
+
+    private final View.OnTouchListener mOnTouchListener = new View.OnTouchListener() {
+        @Override
+        public boolean onTouch(View view, MotionEvent motionEvent) {
+            return mTouchHandler.onTouchEvent(motionEvent);
+        }
+    };
 }

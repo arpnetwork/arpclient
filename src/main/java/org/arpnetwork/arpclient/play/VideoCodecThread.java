@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.arpnetwork.arpclient.play;
 
 import android.media.MediaFormat;
 
 class VideoCodecThread extends MediaCodecThread {
     private static final String MIME_TYPE = "video/avc"; // H.264
-    public static final int WIDTH = 640;
-    public static final int HEIGHT = 1136;
+    public static final int WIDTH = 720;
+    public static final int HEIGHT = 1280;
 
     private int mWidth;
     private int mHeight;
@@ -57,7 +58,7 @@ class VideoCodecThread extends MediaCodecThread {
     protected MediaFormat createMediaFormat() {
         MediaFormat mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE, mWidth, mHeight);
         // add the following setting to fix crash bugs on Galaxy Nexus
-        // evan http://stackoverflow.com/questions/15105843/mediacodec-jelly-bean
+        // http://stackoverflow.com/questions/15105843/mediacodec-jelly-bean
         mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 0);
         return mediaFormat;
     }
