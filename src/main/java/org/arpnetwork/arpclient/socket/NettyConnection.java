@@ -16,6 +16,7 @@
 
 package org.arpnetwork.arpclient.socket;
 
+import org.arpnetwork.arpclient.data.ErrorCode;
 import org.arpnetwork.arpclient.data.Message;
 
 import java.lang.ref.WeakReference;
@@ -45,6 +46,8 @@ public class NettyConnection {
     private ChannelFuture mChannelFuture;
     private GenericFutureListener<ChannelFuture> mChannelFutureListener;
 
+    private boolean mClientDisconnected;
+
     public interface ConnectionListener {
         /**
          * Socket connected
@@ -71,10 +74,10 @@ public class NettyConnection {
         /**
          * Socket error
          *
-         * @param conn
-         * @param cause
+         * @param code See {@link org.arpnetwork.arpclient.data.ErrorCode}
+         * @param msg  Error details
          */
-        void onException(NettyConnection conn, Throwable cause);
+        void onError(int code, String msg);
     }
 
     public NettyConnection(ConnectionListener listener) {
@@ -112,24 +115,24 @@ public class NettyConnection {
             public void operationComplete(ChannelFuture future) {
                 Throwable cause = future.cause();
                 if (cause != null) {
-                    mListener.onException(NettyConnection.this, cause);
+                    mListener.onError(ErrorCode.ERROR_NETWORK, cause.getMessage());
                 }
             }
         };
         mChannelFuture.addListener(mChannelFutureListener);
     }
 
-
     /**
      * Close socket
      */
     public void close() {
-        mChannelFuture.removeListener(mChannelFutureListener);
+        mClientDisconnected = true;
         try {
+            mChannelFuture.removeListener(mChannelFutureListener);
             mChannelFuture.sync().channel().close().sync();
+            mWorkerGroup.shutdownGracefully();
         } catch (Exception e) {
         }
-        mWorkerGroup.shutdownGracefully();
     }
 
     /**
@@ -167,7 +170,11 @@ public class NettyConnection {
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             NettyConnection conn = mConn.get();
             if (conn != null) {
-                conn.mListener.onClosed(conn);
+                if (conn.mClientDisconnected) {
+                    conn.mListener.onClosed(conn);
+                } else {
+                    conn.mListener.onError(ErrorCode.ERROR_DISCONNECTED_BY_DEVICE, "disconnected by remote device");
+                }
             }
 
             super.channelInactive(ctx);
@@ -185,7 +192,7 @@ public class NettyConnection {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             NettyConnection conn = mConn.get();
             if (conn != null) {
-                conn.mListener.onException(conn, cause);
+                conn.mListener.onError(ErrorCode.ERROR_NETWORK, cause.getMessage());
                 conn.close();
             }
         }
@@ -199,7 +206,6 @@ public class NettyConnection {
     }
 
     private static class MessageEncoder extends MessageToByteEncoder<Message> {
-
         @Override
         protected void encode(ChannelHandlerContext ctx, Message msg, ByteBuf out) {
             msg.writeTo(out);

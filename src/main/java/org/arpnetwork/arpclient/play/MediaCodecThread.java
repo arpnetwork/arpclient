@@ -101,6 +101,7 @@ abstract class MediaCodecThread implements Runnable {
                 while (mPacketQueue.size() > mPacketQueueCapacity) {
                     packet = mPacketQueue.take();
                 }
+
                 render(packet);
             } catch (InterruptedException e) {
             } catch (Exception e) {

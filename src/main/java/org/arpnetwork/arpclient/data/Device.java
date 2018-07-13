@@ -16,10 +16,12 @@
 
 package org.arpnetwork.arpclient.data;
 
-public class VideoInfoPacket extends ProtocolPacket<VideoInfo> {
-    public static final int ID = 101;
+public class Device {
+    public String ip;
+    public int port;
 
-    public VideoInfoPacket() {
-        super(ID);
+    @Override
+    public String toString() {
+        return "Device [ip=" + ip + ", port=" + port + "]";
     }
 }

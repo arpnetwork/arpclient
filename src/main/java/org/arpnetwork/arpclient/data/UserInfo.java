@@ -16,10 +16,22 @@
 
 package org.arpnetwork.arpclient.data;
 
-public class VideoInfoPacket extends ProtocolPacket<VideoInfo> {
-    public static final int ID = 101;
+public class UserInfo {
+    public static final int STATE_NO_CONNECTION = 0;
+    public static final int STATE_CONNECTED = 1;
+    public static final int STATE_DISCONNECTED = 2;
+    public static final int STATE_CONNECT_FAIL = -1;
+    public static final int STATE_DISCONNECT_ILLEGAL = -2;
 
-    public VideoInfoPacket() {
-        super(ID);
+    public String id;
+    public String session;
+    public int state;
+    public Device device;
+
+    @Override
+    public String toString() {
+        return "UserInfo [id=" + id + ", session=" + session + ", state=" + state + ", device="
+                + device.toString() + "]";
     }
 }
+

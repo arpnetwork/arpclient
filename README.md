@@ -56,12 +56,24 @@ Set TextureView and device Uri.
 private ARPClient mARPClient;
 
 private void init() {
-    // init ARPClient with listener
-    mARPClient = new ARPClient(this);
+    // init ARPClient with context and listener
+    mARPClient = new ARPClient(getContext(), this);
     // set TextureView for ARPClient to render video and catch touch events
     mARPClient.setSurfaceView(surfaceView);
-    // set remote device uri for connection
-    mARPClient.start(remoteDeviceUri);
+    // start connection with device condition requirement
+    // null for no requirement
+    mARPClient.start(getDeviceCondition());
+}
+
+private HashMap<String, Object> getDeviceCondition() {
+    HashMap<String, Object> condition = new HashMap<>();
+    // CPU model
+    condition.put("cpu", "msm8974");
+    // GPU model
+    condition.put("gpu", "Adreno(TM) 330");
+    // required RAM, unit:byte
+    condition.put("ram", 1000000000);
+    return condition;
 }
 ```
 

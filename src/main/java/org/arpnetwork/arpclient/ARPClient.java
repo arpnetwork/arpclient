@@ -19,7 +19,6 @@ package org.arpnetwork.arpclient;
 import android.content.Context;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -30,39 +29,42 @@ import android.view.TextureView;
 import android.view.View;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 
 import org.arpnetwork.arpclient.data.AVPacket;
+import org.arpnetwork.arpclient.data.ConnectResponsePacket;
+import org.arpnetwork.arpclient.data.UserInfo;
 import org.arpnetwork.arpclient.data.ErrorCode;
 import org.arpnetwork.arpclient.data.Result;
 import org.arpnetwork.arpclient.data.TouchSetting;
 import org.arpnetwork.arpclient.data.TouchSettingPacket;
 import org.arpnetwork.arpclient.data.VideoInfoPacket;
 import org.arpnetwork.arpclient.play.MediaPlayer;
-import org.arpnetwork.arpclient.protocol.ProtocolProxy;
+import org.arpnetwork.arpclient.protocol.DeviceProtocol;
+import org.arpnetwork.arpclient.protocol.ServerProtocol;
 import org.arpnetwork.arpclient.touch.TouchHandler;
 import org.arpnetwork.arpclient.util.PreferenceManager;
+import org.json.JSONObject;
+
+import java.util.HashMap;
 
 public class ARPClient {
-    private static final int TOUCH_SETTING = 100;
-    private static final int VIDEO_SETTING = 101;
-
     private MediaPlayer mMediaPlayer;
     private TextureView mSurfaceView;
     private TouchHandler mTouchHandler;
-    private ProtocolProxy mProtocolProxy;
+    private DeviceProtocol mDeviceProtocol;
 
     private ARPClientListener mListener;
     private Handler mHandler;
+    private Context mContext;
     private Gson mGson;
 
-    private Uri mUri;
+    private UserInfo mUserInfo;
     private Size mViewSize;
 
+    private boolean mConnected;
+    private boolean mDisconnected;
     private boolean mReconnected;
     private boolean mClosed;
-    private boolean mConnected;
-    private boolean mDisconnect;
     private boolean mError;
 
     public interface ARPClientListener {
@@ -93,11 +95,12 @@ public class ARPClient {
         PreferenceManager.fini();
     }
 
-    public ARPClient(ARPClientListener listener) {
+    public ARPClient(Context context, ARPClientListener listener) {
         mMediaPlayer = new MediaPlayer();
         mTouchHandler = new TouchHandler(mTouchHandlerListener);
-        mProtocolProxy = new ProtocolProxy(mProtocolProxyListener);
+        mDeviceProtocol = new DeviceProtocol(mProtocolProxyListener);
         mListener = listener;
+        mContext = context;
         mHandler = new Handler();
         mGson = new Gson();
     }
@@ -121,15 +124,26 @@ public class ARPClient {
     }
 
     /**
-     * Start connection
+     * Get remote device info and start connection
      *
-     * @param uri Format: arp://IP:PORT, example: arp://192.168.1.1:8080
+     * @param condition remote device requirement
      */
-    public void start(Uri uri) {
-        mUri = uri;
-        if (!mDisconnect) {
-            open();
-        }
+    public void start(HashMap<String, Object> condition) {
+        HashMap<String, Object> param = new HashMap<>();
+        param.put("filters", condition);
+
+        ServerProtocol.getUserInfo(mContext, new JSONObject(param).toString(), new ServerProtocol.OnReceiveUserInfo() {
+            @Override
+            public void onReceiveUserInfo(UserInfo info) {
+                mUserInfo = info;
+                open();
+            }
+        }, new ServerProtocol.OnServerProtocolError() {
+            @Override
+            public void onServerProtocolError(int code, String msg) {
+                mListener.onError(code, msg);
+            }
+        });
     }
 
     /**
@@ -137,7 +151,7 @@ public class ARPClient {
      * Effective only in five seconds after disconnection
      */
     public void reconnect() {
-        if (mDisconnect && !mClosed) {
+        if (mDisconnected && !mClosed) {
             mReconnected = true;
             open();
         }
@@ -149,10 +163,10 @@ public class ARPClient {
      */
     public void disconnect() {
         mMediaPlayer.setSurface(null);
-        mProtocolProxy.close();
+        mDeviceProtocol.close();
         mMediaPlayer.removeCallbacks();
         mHandler.removeCallbacksAndMessages(null);
-        mDisconnect = true;
+        mDisconnected = true;
 
         mMediaPlayer.stop();
     }
@@ -162,9 +176,9 @@ public class ARPClient {
      * Once the method was called, remote device can not be reconnected
      */
     public void stop() {
-        if (!mClosed && !mDisconnect) {
+        if (!mClosed && !mDisconnected) {
             if (mConnected) {
-                mProtocolProxy.sendStopReq();
+                mDeviceProtocol.sendStopReq();
                 mConnected = false;
             }
             mHandler.postDelayed(new Runnable() {
@@ -174,7 +188,7 @@ public class ARPClient {
                 }
             }, 500);
             mClosed = true;
-            mDisconnect = true;
+            mDisconnected = true;
         }
     }
 
@@ -197,15 +211,16 @@ public class ARPClient {
     private void open() {
         mMediaPlayer.initThread();
         mClosed = false;
-        mDisconnect = false;
-        mProtocolProxy.open(mUri.getHost(), mUri.getPort());
+        mDisconnected = false;
+        mDeviceProtocol.open(mUserInfo.device.ip, mUserInfo.device.port, mUserInfo.session);
     }
 
     private void handleConnect() {
         mMediaPlayer.start();
         mReconnected = false;
         mConnected = true;
-        mProtocolProxy.sendConnectReq();
+        mDeviceProtocol.sendConnectReq();
+        mDeviceProtocol.sendTimestamp();
     }
 
     private int handleProtocolPacket(String data) {
@@ -213,40 +228,62 @@ public class ARPClient {
             Result result = mGson.fromJson(data, Result.class);
 
             switch (result.id) {
-                case TOUCH_SETTING:
-                    TouchSetting touchSetting = null;
+                case TouchSettingPacket.ID:
+                    TouchSettingPacket touchSettingPacket = null;
                     try {
-                        TouchSettingPacket touchSettingPacket = mGson.fromJson(data, TouchSettingPacket.class);
-                        touchSetting = touchSettingPacket.data;
-                    } catch (JsonSyntaxException e) {
+                        touchSettingPacket = mGson.fromJson(data, TouchSettingPacket.class);
+                    } catch (Exception e) {
                         return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
                     }
+
+                    if (touchSettingPacket == null || touchSettingPacket.data == null) {
+                        return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
+                    }
+
+                    TouchSetting touchSetting = touchSettingPacket.data;
                     touchSetting.setScreenSize(mViewSize);
                     mTouchHandler.setTouchSetting(touchSetting);
                     break;
 
-                case VIDEO_SETTING:
-                    VideoInfoPacket videoInfoData = null;
+                case VideoInfoPacket.ID:
+                    VideoInfoPacket videoInfoPacket = null;
                     try {
-                        videoInfoData = mGson.fromJson(data, VideoInfoPacket.class);
-                    } catch (JsonSyntaxException e) {
+                        videoInfoPacket = mGson.fromJson(data, VideoInfoPacket.class);
+                    } catch (Exception e) {
                         return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
                     }
 
-                    if (videoInfoData != null && videoInfoData.data != null) {
-                        final int videoW = videoInfoData.data.width;
-                        final int videoH = videoInfoData.data.height;
-                        mMediaPlayer.setVideoSize(videoW, videoH);
-
-                        mHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (mListener != null) {
-                                    mListener.onPrepared();
-                                }
-                            }
-                        });
+                    if (videoInfoPacket == null || videoInfoPacket.data == null) {
+                        return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
                     }
+
+                    final int videoW = videoInfoPacket.data.width;
+                    final int videoH = videoInfoPacket.data.height;
+                    mMediaPlayer.setVideoSize(videoW, videoH);
+
+                    mHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (mListener != null) {
+                                mListener.onPrepared();
+                            }
+                        }
+                    });
+                    break;
+
+                case ConnectResponsePacket.ID:
+                    ConnectResponsePacket responsePacket = null;
+                    try {
+                        responsePacket = mGson.fromJson(data, ConnectResponsePacket.class);
+                    } catch (Exception e) {
+                        return ErrorCode.ERROR_CONNECTION_RESULT;
+                    }
+
+                    if (responsePacket == null || responsePacket.result != 0) {
+                        return ErrorCode.ERROR_CONNECTION_REFUSED;
+                    }
+
+                    ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_CONNECTED);
                     break;
 
                 default:
@@ -257,15 +294,17 @@ public class ARPClient {
     }
 
     private void handleError(int code, String msg) {
-        mConnected = false;
-        if (!mReconnected && code == ErrorCode.ERROR_NETWORK) {
-            disconnect();
-            reconnect();
-        } else {
-            mError = true;
-            if (mListener != null) {
-                mListener.onError(code, msg);
+        if (mUserInfo != null) {
+            if (mConnected) {
+                ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_DISCONNECT_ILLEGAL);
+            } else {
+                ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_CONNECT_FAIL);
             }
+        }
+        mConnected = false;
+        mError = true;
+        if (mListener != null) {
+            mListener.onError(code, msg);
         }
     }
 
@@ -286,17 +325,17 @@ public class ARPClient {
     private final TouchHandler.OnTouchInfoListener mTouchHandlerListener = new TouchHandler.OnTouchInfoListener() {
         @Override
         public void onTouchInfo(String touchInfo) {
-            mProtocolProxy.sendTouchEvent(touchInfo);
+            mDeviceProtocol.sendTouchEvent(touchInfo);
         }
     };
 
-    private final ProtocolProxy.OnProtocolListener mProtocolProxyListener = new ProtocolProxy.OnProtocolListener() {
+    private final DeviceProtocol.OnProtocolListener mProtocolProxyListener = new DeviceProtocol.OnProtocolListener() {
         @Override
         public void onConnected() {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    if (!mDisconnect) {
+                    if (!mDisconnected) {
                         handleConnect();
                     }
                 }
@@ -327,6 +366,9 @@ public class ARPClient {
 
         @Override
         public void onClosed() {
+            if (mUserInfo != null) {
+                ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_DISCONNECTED);
+            }
             mListener.onClosed();
         }
     };
@@ -337,7 +379,6 @@ public class ARPClient {
             setTransform(width, height);
 
             setSurface(new Surface(surfaceTexture));
-            reconnect();
         }
 
         @Override

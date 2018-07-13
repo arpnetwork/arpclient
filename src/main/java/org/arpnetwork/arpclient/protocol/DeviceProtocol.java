@@ -22,7 +22,6 @@ import com.google.gson.Gson;
 
 import org.arpnetwork.arpclient.data.AVPacket;
 import org.arpnetwork.arpclient.data.ConnectReq;
-import org.arpnetwork.arpclient.data.ErrorCode;
 import org.arpnetwork.arpclient.data.Message;
 import org.arpnetwork.arpclient.data.StopReq;
 import org.arpnetwork.arpclient.socket.NettyConnection;
@@ -32,12 +31,14 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 
-public class ProtocolProxy implements NettyConnection.ConnectionListener {
+public class DeviceProtocol implements NettyConnection.ConnectionListener {
     private static final int HEARTBEAT_INTERVAL = 5000;
 
     private Gson mGson;
     private NettyConnection mConnection;
     private OnProtocolListener mListener;
+
+    private String mSession;
 
     private Handler mHeartbeatHandler = new Handler();
 
@@ -66,7 +67,7 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
          * Received protocol packet
          *
          * @param data Protocol json string
-         * @return protocol packet error
+         * @return Protocol packet error
          */
         int onProtocolPacket(String data);
 
@@ -76,7 +77,7 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
         void onClosed();
     }
 
-    public ProtocolProxy(OnProtocolListener listener) {
+    public DeviceProtocol(OnProtocolListener listener) {
         mConnection = new NettyConnection(this);
         mListener = listener;
         mGson = new Gson();
@@ -85,11 +86,13 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
     /**
      * Open socket connection
      *
-     * @param host Socket ip
-     * @param port Socket port
+     * @param host    Socket ip
+     * @param port    Socket port
+     * @param session Unique session for device to verify
      */
-    public void open(String host, int port) {
+    public void open(String host, int port, String session) {
         mConnection.connect(host, port);
+        mSession = session;
     }
 
     /**
@@ -103,7 +106,18 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
      * Send a connection request to remote device after socket connected
      */
     public void sendConnectReq() {
-        sendRequest(mGson.toJson(new ConnectReq(null)), Message.PROTOCOL);
+        sendRequest(mGson.toJson(new ConnectReq(mSession)), Message.PROTOCOL);
+    }
+
+    /**
+     * Send a local timestamp to remote device
+     */
+    public void sendTimestamp() {
+        ByteBuffer buffer = ByteBuffer.allocate(8); // size of long
+        long time = System.currentTimeMillis();
+        buffer.putLong(time);
+        Message msg = new Message((byte) Message.TIME, buffer.array());
+        mConnection.write(msg);
     }
 
     /**
@@ -139,7 +153,8 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
     public void onMessage(NettyConnection conn, Message msg) {
         switch (msg.getType()) {
             case Message.VIDEO:
-                mListener.onVideoPacket(getPacket(msg.getDataBuffer()));
+                AVPacket packet = getPacket(msg.getDataBuffer());
+                mListener.onVideoPacket(packet);
                 break;
 
             case Message.PROTOCOL:
@@ -153,14 +168,19 @@ public class ProtocolProxy implements NettyConnection.ConnectionListener {
                 // FIXME
                 break;
 
+            case Message.HEARTBEAT:
+                // FIXME
+                break;
+
             default:
                 break;
         }
     }
 
     @Override
-    public void onException(NettyConnection conn, Throwable cause) {
-        mListener.onError(ErrorCode.ERROR_NETWORK, cause.getMessage());
+    public void onError(int code, String msg) {
+        mHeartbeatHandler.removeCallbacksAndMessages(null);
+        mListener.onError(code, msg);
     }
 
     private void sendRequest(String request, int type) {

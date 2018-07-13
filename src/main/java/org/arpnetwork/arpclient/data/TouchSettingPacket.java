@@ -17,7 +17,7 @@
 package org.arpnetwork.arpclient.data;
 
 public class TouchSettingPacket extends ProtocolPacket<TouchSetting> {
-    private static final int ID = 100;
+    public static final int ID = 100;
 
     public TouchSettingPacket() {
         super(ID);
