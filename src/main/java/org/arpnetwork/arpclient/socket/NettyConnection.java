@@ -123,10 +123,19 @@ public class NettyConnection {
     }
 
     /**
-     * Close socket
+     * Close socket not for timeout reason
      */
     public void close() {
-        mClientDisconnected = true;
+        close(false);
+    }
+
+    /**
+     * Close socket
+     *
+     * @param timeout if for timeout reason
+     */
+    public void close(boolean timeout) {
+        mClientDisconnected = !timeout;
         try {
             mChannelFuture.removeListener(mChannelFutureListener);
             mChannelFuture.sync().channel().close().sync();

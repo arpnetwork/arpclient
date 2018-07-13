@@ -33,6 +33,7 @@ import java.nio.charset.CharsetDecoder;
 
 public class DeviceProtocol implements NettyConnection.ConnectionListener {
     private static final int HEARTBEAT_INTERVAL = 5000;
+    private static final int HEARTBEAT_TIMEOUT = 15000;
 
     private Gson mGson;
     private NettyConnection mConnection;
@@ -40,7 +41,8 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
 
     private String mSession;
 
-    private Handler mHeartbeatHandler = new Handler();
+    private Handler mSendHeartbeatHandler = new Handler();
+    private Handler mReceivedHeartbeatHandler = new Handler();
 
     public interface OnProtocolListener {
         /**
@@ -141,11 +143,13 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
     public void onConnected(NettyConnection conn) {
         mListener.onConnected();
         sendHeartbeat();
+        postReceivedHeartbeatHandler();
     }
 
     @Override
     public void onClosed(NettyConnection conn) {
-        mHeartbeatHandler.removeCallbacksAndMessages(null);
+        mSendHeartbeatHandler.removeCallbacksAndMessages(null);
+        mReceivedHeartbeatHandler.removeCallbacksAndMessages(null);
         mListener.onClosed();
     }
 
@@ -169,7 +173,7 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
                 break;
 
             case Message.HEARTBEAT:
-                // FIXME
+                receivedHeartbeat();
                 break;
 
             default:
@@ -179,7 +183,8 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
 
     @Override
     public void onError(int code, String msg) {
-        mHeartbeatHandler.removeCallbacksAndMessages(null);
+        mSendHeartbeatHandler.removeCallbacksAndMessages(null);
+        mReceivedHeartbeatHandler.removeCallbacksAndMessages(null);
         mListener.onError(code, msg);
     }
 
@@ -192,12 +197,26 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
     private void sendHeartbeat() {
         Message msg = new Message((byte) Message.HEARTBEAT);
         mConnection.write(msg);
-        mHeartbeatHandler.postDelayed(new Runnable() {
+        mSendHeartbeatHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 sendHeartbeat();
             }
         }, HEARTBEAT_INTERVAL);
+    }
+
+    private void receivedHeartbeat() {
+        mReceivedHeartbeatHandler.removeCallbacksAndMessages(null);
+        postReceivedHeartbeatHandler();
+    }
+
+    private void postReceivedHeartbeatHandler() {
+        mReceivedHeartbeatHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mConnection.close(true);
+            }
+        }, HEARTBEAT_TIMEOUT);
     }
 
     private static AVPacket getPacket(ByteBuffer data) {
