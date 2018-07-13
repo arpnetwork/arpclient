@@ -32,6 +32,7 @@ import com.google.gson.Gson;
 
 import org.arpnetwork.arpclient.data.AVPacket;
 import org.arpnetwork.arpclient.data.ConnectResponsePacket;
+import org.arpnetwork.arpclient.data.Quality;
 import org.arpnetwork.arpclient.data.UserInfo;
 import org.arpnetwork.arpclient.data.ErrorCode;
 import org.arpnetwork.arpclient.data.Result;
@@ -93,6 +94,17 @@ public class ARPClient {
 
     public static void fini() {
         PreferenceManager.fini();
+    }
+
+    /**
+     * Set quality.
+     *
+     * @param quality see #{@link Quality}
+     */
+    public static void setQuality(int quality) {
+        if (quality > 0) {
+            Quality.save(quality);
+        }
     }
 
     public ARPClient(Context context, ARPClientListener listener) {

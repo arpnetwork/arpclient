@@ -56,6 +56,10 @@ Set TextureView and device Uri.
 private ARPClient mARPClient;
 
 private void init() {
+    // set video quality before start
+    // default to LOW
+    ARPClient.setQuality(Quality.HIGH);
+
     // init ARPClient with context and listener
     mARPClient = new ARPClient(getContext(), this);
     // set TextureView for ARPClient to render video and catch touch events
