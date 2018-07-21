@@ -16,7 +16,7 @@
 
 package org.arpnetwork.arpclient.data;
 
-public class ErrorCode {
+public class ErrorInfo {
     public static final int ERROR_NETWORK = -1;
 
     // socket connection errors
@@ -32,4 +32,30 @@ public class ErrorCode {
     public static final int ERROR_PROTOCOL_VIDEO_INFO = -10002;
     public static final int ERROR_CONNECTION_RESULT = -10003;
     public static final int ERROR_CONNECTION_REFUSED_VERSION = -10004;
+
+    public static String getErrorMessage(int errorCode) {
+        switch (errorCode) {
+            case ERROR_NETWORK:
+                return "network error";
+
+            case ERROR_DISCONNECTED_BY_DEVICE:
+                return "disconnected by remote device";
+
+            case ERROR_UNKNOWN:
+            case ERROR_PARAM:
+            case ERROR_NO_DEVICES:
+                return "server rejected";
+
+            case ERROR_PROTOCOL_TOUCH_SETTING:
+            case ERROR_PROTOCOL_VIDEO_INFO:
+            case ERROR_CONNECTION_RESULT:
+                return "remote device error";
+
+            case ERROR_CONNECTION_REFUSED_VERSION:
+                return "incompatible version";
+
+            default:
+                return "unknown error";
+        }
+    }
 }

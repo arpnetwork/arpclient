@@ -22,7 +22,7 @@ import com.google.gson.Gson;
 
 import org.arpnetwork.arpclient.data.AVPacket;
 import org.arpnetwork.arpclient.data.ConnectReq;
-import org.arpnetwork.arpclient.data.ErrorCode;
+import org.arpnetwork.arpclient.data.ErrorInfo;
 import org.arpnetwork.arpclient.data.Message;
 import org.arpnetwork.arpclient.data.StopReq;
 import org.arpnetwork.arpclient.socket.NettyConnection;
@@ -54,7 +54,7 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
         /**
          * Socket error
          *
-         * @param code See {@link ErrorCode}
+         * @param code See {@link ErrorInfo}
          * @param msg  Error details
          */
         void onError(int code, String msg);
@@ -165,7 +165,7 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
             case Message.PROTOCOL:
                 int errorCode = mListener.onProtocolPacket(getString(msg.getDataBuffer()));
                 if (errorCode != 0) {
-                    mListener.onError(errorCode, "parse protocol packet error");
+                    mListener.onError(errorCode, null);
                 }
                 break;
 

@@ -22,7 +22,7 @@ import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 
-import org.arpnetwork.arpclient.data.ErrorCode;
+import org.arpnetwork.arpclient.data.ErrorInfo;
 import org.arpnetwork.arpclient.data.UserInfo;
 import org.arpnetwork.arpclient.volley.GsonRequest;
 import org.arpnetwork.arpclient.volley.VolleySingleton;
@@ -80,8 +80,7 @@ public class ServerProtocol {
                     } catch (Exception e) {
                     }
                 }
-                onError.onServerProtocolError(ErrorCode.ERROR_NETWORK,
-                        "network error");
+                onError.onServerProtocolError(ErrorInfo.ERROR_NETWORK, null);
             }
         });
         VolleySingleton.getInstance(context).addToRequestQueue(request);

@@ -16,7 +16,7 @@
 
 package org.arpnetwork.arpclient.socket;
 
-import org.arpnetwork.arpclient.data.ErrorCode;
+import org.arpnetwork.arpclient.data.ErrorInfo;
 import org.arpnetwork.arpclient.data.Message;
 
 import java.lang.ref.WeakReference;
@@ -74,7 +74,7 @@ public class NettyConnection {
         /**
          * Socket error
          *
-         * @param code See {@link ErrorCode}
+         * @param code See {@link ErrorInfo}
          * @param msg  Error details
          */
         void onError(int code, String msg);
@@ -115,7 +115,7 @@ public class NettyConnection {
             public void operationComplete(ChannelFuture future) {
                 Throwable cause = future.cause();
                 if (cause != null) {
-                    mListener.onError(ErrorCode.ERROR_NETWORK, cause.getMessage());
+                    mListener.onError(ErrorInfo.ERROR_NETWORK, cause.getMessage());
                 }
             }
         };
@@ -182,7 +182,7 @@ public class NettyConnection {
                 if (conn.mClientDisconnected) {
                     conn.mListener.onClosed(conn);
                 } else {
-                    conn.mListener.onError(ErrorCode.ERROR_DISCONNECTED_BY_DEVICE, "disconnected by remote device");
+                    conn.mListener.onError(ErrorInfo.ERROR_DISCONNECTED_BY_DEVICE, null);
                 }
             }
 
@@ -201,7 +201,7 @@ public class NettyConnection {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             NettyConnection conn = mConn.get();
             if (conn != null) {
-                conn.mListener.onError(ErrorCode.ERROR_NETWORK, cause.getMessage());
+                conn.mListener.onError(ErrorInfo.ERROR_NETWORK, cause.getMessage());
                 conn.close();
             }
         }

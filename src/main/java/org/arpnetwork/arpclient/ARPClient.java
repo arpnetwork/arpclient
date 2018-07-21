@@ -38,7 +38,7 @@ import org.arpnetwork.arpclient.data.AVPacket;
 import org.arpnetwork.arpclient.data.ConnectResponsePacket;
 import org.arpnetwork.arpclient.data.Quality;
 import org.arpnetwork.arpclient.data.UserInfo;
-import org.arpnetwork.arpclient.data.ErrorCode;
+import org.arpnetwork.arpclient.data.ErrorInfo;
 import org.arpnetwork.arpclient.data.Result;
 import org.arpnetwork.arpclient.data.TouchSetting;
 import org.arpnetwork.arpclient.data.TouchSettingPacket;
@@ -88,7 +88,7 @@ public class ARPClient {
         /**
          * Error occurred.
          *
-         * @param code error code, see {@link ErrorCode}
+         * @param code error code, see {@link ErrorInfo}
          * @param msg
          */
         void onError(int code, String msg);
@@ -163,7 +163,7 @@ public class ARPClient {
         }, new ServerProtocol.OnServerProtocolError() {
             @Override
             public void onServerProtocolError(int code, String msg) {
-                mListener.onError(code, msg);
+                mListener.onError(code, msg == null ? ErrorInfo.getErrorMessage(code) : msg);
             }
         });
     }
@@ -271,11 +271,11 @@ public class ARPClient {
         try {
             touchSettingPacket = mGson.fromJson(data, TouchSettingPacket.class);
         } catch (Exception e) {
-            return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
+            return ErrorInfo.ERROR_PROTOCOL_TOUCH_SETTING;
         }
 
         if (touchSettingPacket.data == null) {
-            return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
+            return ErrorInfo.ERROR_PROTOCOL_TOUCH_SETTING;
         }
 
         TouchSetting touchSetting = touchSettingPacket.data;
@@ -288,14 +288,14 @@ public class ARPClient {
         try {
             videoInfoPacket = mGson.fromJson(data, VideoInfoPacket.class);
         } catch (Exception e) {
-            return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
+            return ErrorInfo.ERROR_PROTOCOL_VIDEO_INFO;
         }
 
         final VideoInfo videoInfo = videoInfoPacket.data;
 
         if (videoInfo == null || videoInfo.width == 0 || videoInfo.height == 0
                 || videoInfo.resolutionWidth == 0 || videoInfo.resolutionHeight == 0) {
-            return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
+            return ErrorInfo.ERROR_PROTOCOL_VIDEO_INFO;
         }
 
         if (mDisplaySize == null) {
@@ -326,11 +326,11 @@ public class ARPClient {
         try {
             responsePacket = mGson.fromJson(data, ConnectResponsePacket.class);
         } catch (Exception e) {
-            return ErrorCode.ERROR_CONNECTION_RESULT;
+            return ErrorInfo.ERROR_CONNECTION_RESULT;
         }
 
         if (responsePacket == null || responsePacket.result != 0) {
-            return ErrorCode.ERROR_CONNECTION_REFUSED_VERSION;
+            return ErrorInfo.ERROR_CONNECTION_REFUSED_VERSION;
         }
 
         ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_CONNECTED);
@@ -348,7 +348,7 @@ public class ARPClient {
         mConnected = false;
         mError = true;
         if (mListener != null) {
-            mListener.onError(code, msg);
+            mListener.onError(code, msg == null ? ErrorInfo.getErrorMessage(code) : msg);
         }
     }
 
