@@ -16,6 +16,7 @@
 
 package org.arpnetwork.arpclient.touch;
 
+import android.graphics.Rect;
 import android.view.MotionEvent;
 
 import org.arpnetwork.arpclient.data.TouchSetting;
@@ -49,6 +50,19 @@ public class TouchHandler {
     }
 
     /**
+     * Set video rect in touch view to scale touch command for remote device
+     *
+     * @param videoRect        video rect in surface view
+     * @param statusBarHeight  status bar height of remote device
+     * @param virtualBarHeight virtual bra height of remote device
+     */
+    public void setVideoViewRect(Rect videoRect, int statusBarHeight, int virtualBarHeight) {
+        if (mTouchSetting != null) {
+            mTouchSetting.setTouchArea(videoRect, statusBarHeight, virtualBarHeight);
+        }
+    }
+
+    /**
      * Set screen orientation for touch event transform.
      *
      * @param landscape
@@ -64,11 +78,12 @@ public class TouchHandler {
      * @return
      */
     public boolean onTouchEvent(MotionEvent ev) {
-        if (mTouchSetting == null) {
+        if (mTouchSetting == null || !mTouchSetting.isEnabled()) {
             return false;
         }
 
         final int action = ev.getActionMasked();
+
         final int actionIndex = ev.getActionIndex();
 
         switch (action) {

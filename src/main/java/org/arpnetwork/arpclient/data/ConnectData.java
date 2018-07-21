@@ -17,7 +17,7 @@
 package org.arpnetwork.arpclient.data;
 
 public class ConnectData {
-    public String version = "1.1";
+    public String version = "1.0";
     public String platform = "android";
     public String session;
     public int quality;

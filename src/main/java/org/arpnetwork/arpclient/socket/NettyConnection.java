@@ -74,7 +74,7 @@ public class NettyConnection {
         /**
          * Socket error
          *
-         * @param code See {@link org.arpnetwork.arpclient.data.ErrorCode}
+         * @param code See {@link ErrorCode}
          * @param msg  Error details
          */
         void onError(int code, String msg);

@@ -31,5 +31,5 @@ public class ErrorCode {
     public static final int ERROR_PROTOCOL_TOUCH_SETTING = -10001;
     public static final int ERROR_PROTOCOL_VIDEO_INFO = -10002;
     public static final int ERROR_CONNECTION_RESULT = -10003;
-    public static final int ERROR_CONNECTION_REFUSED = -10004;
+    public static final int ERROR_CONNECTION_REFUSED_VERSION = -10004;
 }

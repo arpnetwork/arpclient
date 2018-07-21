@@ -63,7 +63,9 @@ private void init() {
     // init ARPClient with context and listener
     mARPClient = new ARPClient(getContext(), this);
     // set TextureView for ARPClient to render video and catch touch events
-    mARPClient.setSurfaceView(surfaceView);
+    // The TextureView must be set for ARPClient when init and before started.
+    // The TextureView must be under FrameLayout and placed match screen.
+    mARPClient.setSurfaceView(textureView);
     // start connection with device condition requirement
     // null for no requirement
     mARPClient.start(getDeviceCondition());

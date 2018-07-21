@@ -18,15 +18,19 @@ package org.arpnetwork.arpclient;
 
 import android.content.Context;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.Size;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
 
 import com.google.gson.Gson;
 
@@ -38,6 +42,7 @@ import org.arpnetwork.arpclient.data.ErrorCode;
 import org.arpnetwork.arpclient.data.Result;
 import org.arpnetwork.arpclient.data.TouchSetting;
 import org.arpnetwork.arpclient.data.TouchSettingPacket;
+import org.arpnetwork.arpclient.data.VideoInfo;
 import org.arpnetwork.arpclient.data.VideoInfoPacket;
 import org.arpnetwork.arpclient.play.MediaPlayer;
 import org.arpnetwork.arpclient.protocol.DeviceProtocol;
@@ -60,13 +65,14 @@ public class ARPClient {
     private Gson mGson;
 
     private UserInfo mUserInfo;
-    private Size mViewSize;
 
     private boolean mConnected;
     private boolean mDisconnected;
     private boolean mReconnected;
     private boolean mClosed;
     private boolean mError;
+
+    private Size mDisplaySize;
 
     public interface ARPClientListener {
         /**
@@ -82,7 +88,7 @@ public class ARPClient {
         /**
          * Error occurred.
          *
-         * @param code error code, see {@link org.arpnetwork.arpclient.data.ErrorCode}
+         * @param code error code, see {@link ErrorCode}
          * @param msg
          */
         void onError(int code, String msg);
@@ -123,6 +129,10 @@ public class ARPClient {
      * @param view TextureView for render
      */
     public void setSurfaceView(TextureView view) {
+        if (!(view.getParent() instanceof FrameLayout)) {
+            throw new IllegalStateException("the parent of textureView must be a FrameLayout");
+        }
+
         mSurfaceView = view;
 
         mSurfaceView.setFocusable(true);
@@ -241,67 +251,89 @@ public class ARPClient {
 
             switch (result.id) {
                 case TouchSettingPacket.ID:
-                    TouchSettingPacket touchSettingPacket = null;
-                    try {
-                        touchSettingPacket = mGson.fromJson(data, TouchSettingPacket.class);
-                    } catch (Exception e) {
-                        return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
-                    }
-
-                    if (touchSettingPacket == null || touchSettingPacket.data == null) {
-                        return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
-                    }
-
-                    TouchSetting touchSetting = touchSettingPacket.data;
-                    touchSetting.setScreenSize(mViewSize);
-                    mTouchHandler.setTouchSetting(touchSetting);
-                    break;
+                    return handleTouchSettingPacket(data);
 
                 case VideoInfoPacket.ID:
-                    VideoInfoPacket videoInfoPacket = null;
-                    try {
-                        videoInfoPacket = mGson.fromJson(data, VideoInfoPacket.class);
-                    } catch (Exception e) {
-                        return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
-                    }
-
-                    if (videoInfoPacket == null || videoInfoPacket.data == null) {
-                        return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
-                    }
-
-                    final int videoW = videoInfoPacket.data.width;
-                    final int videoH = videoInfoPacket.data.height;
-                    mMediaPlayer.setVideoSize(videoW, videoH);
-
-                    mHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (mListener != null) {
-                                mListener.onPrepared();
-                            }
-                        }
-                    });
-                    break;
+                    return handleVideoInfoPacket(data);
 
                 case ConnectResponsePacket.ID:
-                    ConnectResponsePacket responsePacket = null;
-                    try {
-                        responsePacket = mGson.fromJson(data, ConnectResponsePacket.class);
-                    } catch (Exception e) {
-                        return ErrorCode.ERROR_CONNECTION_RESULT;
-                    }
-
-                    if (responsePacket == null || responsePacket.result != 0) {
-                        return ErrorCode.ERROR_CONNECTION_REFUSED;
-                    }
-
-                    ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_CONNECTED);
-                    break;
+                    return handleConnectResponsePacket(data);
 
                 default:
                     break;
             }
         }
+        return 0;
+    }
+
+    private int handleTouchSettingPacket(String data) {
+        TouchSettingPacket touchSettingPacket = null;
+        try {
+            touchSettingPacket = mGson.fromJson(data, TouchSettingPacket.class);
+        } catch (Exception e) {
+            return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
+        }
+
+        if (touchSettingPacket.data == null) {
+            return ErrorCode.ERROR_PROTOCOL_TOUCH_SETTING;
+        }
+
+        TouchSetting touchSetting = touchSettingPacket.data;
+        mTouchHandler.setTouchSetting(touchSetting);
+        return 0;
+    }
+
+    private int handleVideoInfoPacket(String data) {
+        VideoInfoPacket videoInfoPacket = null;
+        try {
+            videoInfoPacket = mGson.fromJson(data, VideoInfoPacket.class);
+        } catch (Exception e) {
+            return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
+        }
+
+        final VideoInfo videoInfo = videoInfoPacket.data;
+
+        if (videoInfo == null || videoInfo.width == 0 || videoInfo.height == 0
+                || videoInfo.resolutionWidth == 0 || videoInfo.resolutionHeight == 0) {
+            return ErrorCode.ERROR_PROTOCOL_VIDEO_INFO;
+        }
+
+        if (mDisplaySize == null) {
+            throw new IllegalStateException("surface view must be set when init and before calling start");
+        }
+
+        final Rect viewRect = videoInfo.getSurfaceViewRect(mDisplaySize.getWidth(),
+                mDisplaySize.getHeight());
+        setViewRect(viewRect);
+        mTouchHandler.setVideoViewRect(
+                videoInfo.getDisplayRect(viewRect.width(), viewRect.height()),
+                videoInfo.statusBarHeight, videoInfo.virtualBarHeight);
+        mMediaPlayer.setVideoSize(videoInfo.width, videoInfo.height);
+
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (mListener != null) {
+                    mListener.onPrepared();
+                }
+            }
+        });
+        return 0;
+    }
+
+    private int handleConnectResponsePacket(String data) {
+        ConnectResponsePacket responsePacket = null;
+        try {
+            responsePacket = mGson.fromJson(data, ConnectResponsePacket.class);
+        } catch (Exception e) {
+            return ErrorCode.ERROR_CONNECTION_RESULT;
+        }
+
+        if (responsePacket == null || responsePacket.result != 0) {
+            return ErrorCode.ERROR_CONNECTION_REFUSED_VERSION;
+        }
+
+        ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_CONNECTED);
         return 0;
     }
 
@@ -320,8 +352,20 @@ public class ARPClient {
         }
     }
 
+    private void setViewRect(Rect viewRect) {
+        final FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(viewRect.width(), viewRect.height());
+        params.leftMargin = viewRect.left;
+        params.topMargin = viewRect.top;
+
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mSurfaceView.setLayoutParams(params);
+            }
+        });
+    }
+
     private void setTransform(int width, int height) {
-        mViewSize = new Size(width, height);
         if (width > height) {
             Matrix matrix = new Matrix();
             matrix.preScale(height * 1.0f / width, width * 1.0f / height, width / 2, height / 2);
@@ -331,6 +375,29 @@ public class ARPClient {
             setLandscape(true);
         } else {
             setLandscape(false);
+        }
+    }
+
+    private void setDisplaySize(int width, int height) {
+        if (mDisplaySize == null) {
+            // surface view must be full screen
+            // get size of full view
+            WindowManager wm = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
+            DisplayMetrics dm = new DisplayMetrics();
+            wm.getDefaultDisplay().getMetrics(dm);
+
+            // get height of status bar
+            int statusBarHeight = -1;
+            int resourceId = mContext.getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resourceId > 0) {
+                statusBarHeight = mContext.getResources().getDimensionPixelSize(resourceId);
+            }
+
+            if (width < dm.widthPixels || height < (dm.heightPixels - statusBarHeight)) {
+                throw new IllegalStateException("surface view must be full screen");
+            }
+
+            mDisplaySize = new Size(width, height);
         }
     }
 
@@ -388,6 +455,7 @@ public class ARPClient {
     private final TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+            setDisplaySize(width, height);
             setTransform(width, height);
 
             setSurface(new Surface(surfaceTexture));
