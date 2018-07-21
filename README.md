@@ -64,11 +64,12 @@ private void init() {
     mARPClient = new ARPClient(getContext(), this);
     // set TextureView for ARPClient to render video and catch touch events
     // The TextureView must be set for ARPClient when init and before started.
-    // The TextureView must be under FrameLayout and placed match screen.
+    // The TextureView must be placed in FrameLayout and match screen.
     mARPClient.setSurfaceView(textureView);
     // start connection with device condition requirement
-    // null for no requirement
-    mARPClient.start(getDeviceCondition());
+    // and package name of launching app
+    // null for no requirement, packageName must not be null
+    mARPClient.start(getDeviceCondition(), packageName);
 }
 
 private HashMap<String, Object> getDeviceCondition() {
@@ -79,6 +80,10 @@ private HashMap<String, Object> getDeviceCondition() {
     condition.put("gpu", "Adreno(TM) 330");
     // required RAM, unit:byte
     condition.put("ram", 1000000000);
+    // required upload speed, unit:byte/s
+    condition.put("uploadSpeed", 10000);
+    // required download speed, unit:byte/s
+    condition.put("downloadSpeed", 10000);
     return condition;
 }
 ```

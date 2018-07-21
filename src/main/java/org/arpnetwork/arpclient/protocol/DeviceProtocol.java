@@ -41,6 +41,7 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
     private OnProtocolListener mListener;
 
     private String mSession;
+    private String mPackageName;
 
     private Handler mSendHeartbeatHandler = new Handler();
     private Handler mReceivedHeartbeatHandler = new Handler();
@@ -89,13 +90,15 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
     /**
      * Open socket connection
      *
-     * @param host    Socket ip
-     * @param port    Socket port
-     * @param session Unique session for device to verify
+     * @param host        Socket ip
+     * @param port        Socket port
+     * @param session     Unique session for device to verify
+     * @param packageName Package name of required application
      */
-    public void open(String host, int port, String session) {
+    public void open(String host, int port, String session, String packageName) {
         mConnection.connect(host, port);
         mSession = session;
+        mPackageName = packageName;
     }
 
     /**
@@ -109,7 +112,7 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
      * Send a connection request to remote device after socket connected
      */
     public void sendConnectReq() {
-        sendRequest(mGson.toJson(new ConnectReq(mSession)), Message.PROTOCOL);
+        sendRequest(mGson.toJson(new ConnectReq(mSession, mPackageName)), Message.PROTOCOL);
     }
 
     /**

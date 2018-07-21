@@ -19,11 +19,12 @@ package org.arpnetwork.arpclient.data;
 public class ConnectReq extends ProtocolPacket<ConnectData> {
     private static final int ID = 1;
 
-    public ConnectReq(String sessionId) {
+    public ConnectReq(String sessionId, String packageName) {
         super(ID);
 
         data = new ConnectData();
         data.session = sessionId;
+        data.packageName = packageName;
         data.quality = Quality.get();
     }
 }

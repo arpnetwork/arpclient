@@ -20,5 +20,6 @@ public class ConnectData {
     public String version = "1.0";
     public String platform = "android";
     public String session;
+    public String packageName;
     public int quality;
 }

@@ -65,6 +65,7 @@ public class ARPClient {
     private Gson mGson;
 
     private UserInfo mUserInfo;
+    private String mPackageName;
 
     private boolean mConnected;
     private boolean mDisconnected;
@@ -149,11 +150,16 @@ public class ARPClient {
      * Get remote device info and start connection
      *
      * @param condition remote device requirement
+     * @param packageName Package name of required application
      */
-    public void start(HashMap<String, Object> condition) {
+    public void start(HashMap<String, Object> condition, String packageName) {
+        if (TextUtils.isEmpty(packageName)) {
+            throw new IllegalArgumentException("package name is null");
+        }
+
         HashMap<String, Object> param = new HashMap<>();
         param.put("filters", condition);
-
+        mPackageName = packageName;
         ServerProtocol.getUserInfo(mContext, new JSONObject(param).toString(), new ServerProtocol.OnReceiveUserInfo() {
             @Override
             public void onReceiveUserInfo(UserInfo info) {
@@ -234,7 +240,7 @@ public class ARPClient {
         mMediaPlayer.initThread();
         mClosed = false;
         mDisconnected = false;
-        mDeviceProtocol.open(mUserInfo.device.ip, mUserInfo.device.port, mUserInfo.session);
+        mDeviceProtocol.open(mUserInfo.device.ip, mUserInfo.device.port, mUserInfo.session, mPackageName);
     }
 
     private void handleConnect() {
