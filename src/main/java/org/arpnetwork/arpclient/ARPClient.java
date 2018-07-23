@@ -18,7 +18,6 @@ package org.arpnetwork.arpclient;
 
 import android.content.Context;
 import android.graphics.Matrix;
-import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.os.Handler;
@@ -284,7 +283,11 @@ public class ARPClient {
             return ErrorInfo.ERROR_PROTOCOL_TOUCH_SETTING;
         }
 
+        if (mDisplaySize == null) {
+            throw new IllegalStateException("surface view must be set when init and before calling start");
+        }
         TouchSetting touchSetting = touchSettingPacket.data;
+        touchSetting.setTouchSize(mDisplaySize);
         mTouchHandler.setTouchSetting(touchSetting);
         return 0;
     }
@@ -299,21 +302,10 @@ public class ARPClient {
 
         final VideoInfo videoInfo = videoInfoPacket.data;
 
-        if (videoInfo == null || videoInfo.width == 0 || videoInfo.height == 0
-                || videoInfo.resolutionWidth == 0 || videoInfo.resolutionHeight == 0) {
+        if (videoInfo == null || videoInfo.width == 0 || videoInfo.height == 0) {
             return ErrorInfo.ERROR_PROTOCOL_VIDEO_INFO;
         }
 
-        if (mDisplaySize == null) {
-            throw new IllegalStateException("surface view must be set when init and before calling start");
-        }
-
-        final Rect viewRect = videoInfo.getSurfaceViewRect(mDisplaySize.getWidth(),
-                mDisplaySize.getHeight());
-        setViewRect(viewRect);
-        mTouchHandler.setVideoViewRect(
-                videoInfo.getDisplayRect(viewRect.width(), viewRect.height()),
-                videoInfo.statusBarHeight, videoInfo.virtualBarHeight);
         mMediaPlayer.setVideoSize(videoInfo.width, videoInfo.height);
 
         mHandler.post(new Runnable() {
@@ -356,19 +348,6 @@ public class ARPClient {
         if (mListener != null) {
             mListener.onError(code, msg == null ? ErrorInfo.getErrorMessage(code) : msg);
         }
-    }
-
-    private void setViewRect(Rect viewRect) {
-        final FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(viewRect.width(), viewRect.height());
-        params.leftMargin = viewRect.left;
-        params.topMargin = viewRect.top;
-
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                mSurfaceView.setLayoutParams(params);
-            }
-        });
     }
 
     private void setTransform(int width, int height) {

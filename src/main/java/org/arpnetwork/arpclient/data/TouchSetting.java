@@ -17,7 +17,7 @@
 package org.arpnetwork.arpclient.data;
 
 import android.graphics.Point;
-import android.graphics.Rect;
+import android.util.Size;
 
 public class TouchSetting {
     private static final int DEFAULT_PRESSURE = 50;
@@ -30,11 +30,18 @@ public class TouchSetting {
     private int pressure;
     private int major;
     private int minor;
-
     private int statusBarHeight;
-    private int virtualBarHeight;
 
-    private Rect mTouchRect;
+    private Size mTouchSize;
+
+    /**
+     * Set touch area size
+     *
+     * @param size
+     */
+    public void setTouchSize(Size size) {
+        mTouchSize = size;
+    }
 
     /**
      * Transformed available
@@ -42,21 +49,7 @@ public class TouchSetting {
      * @return
      */
     public boolean isEnabled() {
-        // transformed enabled only after touch area set
-        return mTouchRect != null;
-    }
-
-    /**
-     * Set touch area
-     *
-     * @param videoRect        video rect in surface view
-     * @param statusBarHeight  status bar height of remote device
-     * @param virtualBarHeight virtual bra height of remote device
-     */
-    public void setTouchArea(Rect videoRect, int statusBarHeight, int virtualBarHeight) {
-        this.mTouchRect = videoRect;
-        this.statusBarHeight = statusBarHeight;
-        this.virtualBarHeight = virtualBarHeight;
+        return mTouchSize != null;
     }
 
     /**
@@ -69,15 +62,13 @@ public class TouchSetting {
      * @return
      */
     public Point getTransformedPoint(float originX, float originY, boolean isLandscape) {
-        originX -= mTouchRect.left;
-        originY -= mTouchRect.top;
         int transformedX = (int) (originX / getPercentX());
         int transformedY = (int) (originY / getPercentY());
         if (isLandscape) {
-            transformedX = (int) ((mTouchRect.height() - originY) / getPercentY());
+            transformedX = (int) ((mTouchSize.getHeight() - originY) / getPercentY());
             transformedY = (int) (originX / getPercentX());
         }
-        return new Point(transformedX, getEffectiveY(transformedY));
+        return new Point(transformedX, transformedY + 1 + statusBarHeight);
     }
 
     /**
@@ -144,22 +135,17 @@ public class TouchSetting {
     }
 
     private double getPercentX() {
-        return mTouchRect.width() / (double) x;
+        return mTouchSize.getWidth() / (double) x;
     }
 
     private double getPercentY() {
-        return mTouchRect.height() / (double) y;
-    }
-
-    // invalidate touch on status bar and virtual bar
-    private int getEffectiveY(int transformedY) {
-        return Math.min(Math.max(statusBarHeight + 1, transformedY), (y - virtualBarHeight));
+        return mTouchSize.getHeight() / (double) y;
     }
 
     @Override
     public String toString() {
         return "TouchSetting [contacts=" + contacts + ", x=" + x + ", y=" + y + ", pressure="
                 + pressure + ", major=" + major + ", minor=" + minor + ", screen width:"
-                + mTouchRect.width() + ", screen height:" + mTouchRect.height() + "]";
+                + mTouchSize.getWidth() + ", screen height:" + mTouchSize.getHeight() + "]";
     }
 }
