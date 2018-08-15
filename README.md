@@ -66,25 +66,10 @@ private void init() {
     // The TextureView must be set for ARPClient when init and before started.
     // The TextureView must be placed in FrameLayout and match screen.
     mARPClient.setSurfaceView(textureView);
-    // start connection with device condition requirement
+    // start connection with ip and port of remote device, session for authentication
     // and package name of launching app
-    // null for no requirement, packageName must not be null
-    mARPClient.start(getDeviceCondition(), packageName);
-}
-
-private HashMap<String, Object> getDeviceCondition() {
-    HashMap<String, Object> condition = new HashMap<>();
-    // CPU model
-    condition.put("cpu", "msm8974");
-    // GPU model
-    condition.put("gpu", "Adreno(TM) 330");
-    // required RAM, unit:byte
-    condition.put("ram", 1000000000);
-    // required upload speed, unit:byte/s
-    condition.put("uploadSpeed", 10000);
-    // required download speed, unit:byte/s
-    condition.put("downloadSpeed", 10000);
-    return condition;
+    // All parameter must not be null.
+    mARPClient.start(host, ip, session, packageName);
 }
 ```
 
@@ -94,9 +79,9 @@ ARPClient listener.
 public void onPrepared() {
     // do something when is ready for play
     // for example,
-    // for it may take a few seconds to connect to a appropriate device,
-    // you can set up a progress indicator when create the activity
-    // and dismiss it here
+    // for it may take a few seconds to connect to the remote device,
+    // a progress indicator can be set up when creating the activity
+    // and dismissed here
 }
 
 @Override

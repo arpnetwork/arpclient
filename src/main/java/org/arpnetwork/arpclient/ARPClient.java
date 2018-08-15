@@ -21,6 +21,7 @@ import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Size;
@@ -36,7 +37,6 @@ import com.google.gson.Gson;
 import org.arpnetwork.arpclient.data.AVPacket;
 import org.arpnetwork.arpclient.data.ConnectResponsePacket;
 import org.arpnetwork.arpclient.data.Quality;
-import org.arpnetwork.arpclient.data.UserInfo;
 import org.arpnetwork.arpclient.data.ErrorInfo;
 import org.arpnetwork.arpclient.data.Result;
 import org.arpnetwork.arpclient.data.TouchSetting;
@@ -45,12 +45,8 @@ import org.arpnetwork.arpclient.data.VideoInfo;
 import org.arpnetwork.arpclient.data.VideoInfoPacket;
 import org.arpnetwork.arpclient.play.MediaPlayer;
 import org.arpnetwork.arpclient.protocol.DeviceProtocol;
-import org.arpnetwork.arpclient.protocol.ServerProtocol;
 import org.arpnetwork.arpclient.touch.TouchHandler;
 import org.arpnetwork.arpclient.util.PreferenceManager;
-import org.json.JSONObject;
-
-import java.util.HashMap;
 
 public class ARPClient {
     private MediaPlayer mMediaPlayer;
@@ -63,8 +59,10 @@ public class ARPClient {
     private Context mContext;
     private Gson mGson;
 
-    private UserInfo mUserInfo;
     private String mPackageName;
+    private String mHost;
+    private int mPort;
+    private String mSession;
 
     private boolean mConnected;
     private boolean mDisconnected;
@@ -148,29 +146,30 @@ public class ARPClient {
     /**
      * Get remote device info and start connection
      *
-     * @param condition remote device requirement
+     * @param host        Remote device host
+     * @param port        Remote device host
+     * @param session     Session for connection
      * @param packageName Package name of required application
      */
-    public void start(HashMap<String, Object> condition, String packageName) {
+    public void start(@NonNull String host, @NonNull int port, @NonNull String session, @NonNull String packageName) {
+        if (TextUtils.isEmpty(host)) {
+            throw new IllegalArgumentException("host is null");
+        }
+        if (port == 0) {
+            throw new IllegalArgumentException("port is 0");
+        }
+        if (TextUtils.isEmpty(session)) {
+            throw new IllegalArgumentException("session is null");
+        }
         if (TextUtils.isEmpty(packageName)) {
             throw new IllegalArgumentException("package name is null");
         }
 
-        HashMap<String, Object> param = new HashMap<>();
-        param.put("filters", condition);
+        mHost = host;
+        mPort = port;
+        mSession = session;
         mPackageName = packageName;
-        ServerProtocol.getUserInfo(mContext, new JSONObject(param).toString(), new ServerProtocol.OnReceiveUserInfo() {
-            @Override
-            public void onReceiveUserInfo(UserInfo info) {
-                mUserInfo = info;
-                open();
-            }
-        }, new ServerProtocol.OnServerProtocolError() {
-            @Override
-            public void onServerProtocolError(int code, String msg) {
-                mListener.onError(code, msg == null ? ErrorInfo.getErrorMessage(code) : msg);
-            }
-        });
+        open();
     }
 
     /**
@@ -239,7 +238,7 @@ public class ARPClient {
         mMediaPlayer.initThread();
         mClosed = false;
         mDisconnected = false;
-        mDeviceProtocol.open(mUserInfo.device.ip, mUserInfo.device.port, mUserInfo.session, mPackageName);
+        mDeviceProtocol.open(mHost, mPort, mSession, mPackageName);
     }
 
     private void handleConnect() {
@@ -331,18 +330,10 @@ public class ARPClient {
             return ErrorInfo.ERROR_CONNECTION_REFUSED_VERSION;
         }
 
-        ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_CONNECTED);
         return 0;
     }
 
     private void handleError(int code, String msg) {
-        if (mUserInfo != null) {
-            if (mConnected) {
-                ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_DISCONNECT_ILLEGAL);
-            } else {
-                ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_CONNECT_FAIL);
-            }
-        }
         mConnected = false;
         mError = true;
         if (mListener != null) {
@@ -430,9 +421,6 @@ public class ARPClient {
 
         @Override
         public void onClosed() {
-            if (mUserInfo != null) {
-                ServerProtocol.setConnectionState(mContext, mUserInfo.id, UserInfo.STATE_DISCONNECTED);
-            }
             mListener.onClosed();
         }
     };
