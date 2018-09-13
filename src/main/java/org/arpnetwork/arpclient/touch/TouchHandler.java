@@ -80,8 +80,6 @@ public class TouchHandler {
 
                 clearStringBuilder();
                 appendTouchInfoString(pointerId, actionIndex, "d", x, y, ev);
-
-                mListener.onTouchInfo(mBuilder.toString());
                 break;
             }
 
@@ -92,8 +90,6 @@ public class TouchHandler {
 
                 clearStringBuilder();
                 appendTouchInfoString(pointerId, actionIndex, "d", x, y, ev);
-
-                mListener.onTouchInfo(mBuilder.toString());
                 break;
             }
 
@@ -107,16 +103,12 @@ public class TouchHandler {
 
                     appendTouchInfoString(ev.getPointerId(i), actionIndex, "m", x, y, ev);
                 }
-
-                mListener.onTouchInfo(mBuilder.toString());
                 break;
             }
 
             case MotionEvent.ACTION_POINTER_UP: {
                 clearStringBuilder();
                 appendUpString(ev.getPointerId(actionIndex));
-
-                mListener.onTouchInfo(mBuilder.toString());
                 break;
             }
 
@@ -124,11 +116,11 @@ public class TouchHandler {
             case MotionEvent.ACTION_CANCEL: {
                 clearStringBuilder();
                 appendUpString(ev.getPointerId(0));
-
-                mListener.onTouchInfo(mBuilder.toString());
                 break;
             }
         }
+        mBuilder.append("c\n");
+        mListener.onTouchInfo(mBuilder.toString());
         return true;
     }
 
@@ -143,11 +135,9 @@ public class TouchHandler {
                 mTouchSetting.getTransformedPressure(ev.getPressure(index)),
                 mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(0)),
                 mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(0))));
-        mBuilder.append("c\n");
     }
 
     private void appendUpString(int id) {
         mBuilder.append(String.format(Locale.US, "u %d \n", id));
-        mBuilder.append("c\n");
     }
 }
