@@ -18,6 +18,7 @@ package org.arpnetwork.arpclient.play;
 
 import android.media.MediaCodec;
 import android.media.MediaFormat;
+import android.util.Log;
 import android.view.Surface;
 
 import org.arpnetwork.arpclient.data.AVPacket;
@@ -27,8 +28,12 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
 
 abstract class MediaCodecThread implements Runnable {
+    private static final String TAG = MediaCodecThread.class.getSimpleName();
+    private static final int MAX_PACKETS = 15;
+
     private Thread mCodecThread;
     private MediaCodec mMediaCodec;
+    private RenderThread mRenderThread;
 
     private int mPacketQueueCapacity;
     private boolean mStopped;
@@ -37,7 +42,7 @@ abstract class MediaCodecThread implements Runnable {
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
 
     public MediaCodecThread() {
-        this(Integer.MAX_VALUE);
+        this(MAX_PACKETS);
     }
 
     public MediaCodecThread(int capacity) {
@@ -57,6 +62,10 @@ abstract class MediaCodecThread implements Runnable {
         if (mMediaCodec != null) {
             mStopped = false;
             onStart();
+
+            mRenderThread = new RenderThread();
+            mRenderThread.start();
+
             mCodecThread.start();
         }
     }
@@ -67,8 +76,10 @@ abstract class MediaCodecThread implements Runnable {
     public synchronized void stop() {
         if (!mStopped) {
             mStopped = true;
+            mRenderThread.interrupt();
             mCodecThread.interrupt();
             try {
+                mRenderThread.join();
                 mCodecThread.join();
             } catch (InterruptedException e) {
             }
@@ -102,9 +113,12 @@ abstract class MediaCodecThread implements Runnable {
                     packet = mPacketQueue.take();
                 }
 
-                render(packet);
-            } catch (InterruptedException e) {
-            } catch (Exception e) {
+                queueInputBuffer(packet);
+                synchronized (mRenderThread) {
+                    mRenderThread.notify();
+                }
+            } catch (InterruptedException ignored) {
+            } catch (Exception ignored) {
             }
         }
     }
@@ -141,7 +155,7 @@ abstract class MediaCodecThread implements Runnable {
     private void initDecoder(Surface surface) {
         try {
             mMediaCodec = MediaCodec.createDecoderByType(mimeType());
-        } catch (IOException e) {
+        } catch (IOException ignored) {
         }
 
         if (mMediaCodec != null) {
@@ -153,30 +167,44 @@ abstract class MediaCodecThread implements Runnable {
         }
     }
 
-    private boolean render(AVPacket packet) {
+    private void queueInputBuffer(AVPacket packet) {
         int inputBufferIndex = mMediaCodec.dequeueInputBuffer(-1);
         if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = mMediaCodec.getInputBuffer(inputBufferIndex);
             inputBuffer.clear();
             inputBuffer.put(packet.data, 0, packet.size);
             mMediaCodec.queueInputBuffer(inputBufferIndex, 0, packet.size, packet.pts, 0);
+        } else {
+            Log.e(TAG, "queueInputBuffer. inputBufferIndex = " + inputBufferIndex);
         }
+    }
 
+    private boolean render() {
         while (!mStopped) {
             // Get output buffer index
-            int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 0);
-
+            int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 15);
             if (outputBufferIndex >= 0) {
                 ByteBuffer outputBuffer = mMediaCodec.getOutputBuffer(outputBufferIndex);
                 boolean rendered = onRender(mBufferInfo, outputBuffer);
                 mMediaCodec.releaseOutputBuffer(outputBufferIndex, !rendered);
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 onFormatChanged(mMediaCodec.getOutputFormat());
-            } else {
-                break;
             }
         }
-
         return true;
+    }
+
+    private class RenderThread extends Thread {
+        @Override
+        public void run() {
+            synchronized (this) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
+            render();
+        }
     }
 }
