@@ -95,6 +95,14 @@ public void onError(int errorCode, String msg) {
 }
 ```
 
+Pass back key event.
+```java
+@Override
+public void onBackPressed() {
+    mARPClient.onBackPressed();
+}
+```
+
 Stop connection.
 ```java
 mARPClient.stop();

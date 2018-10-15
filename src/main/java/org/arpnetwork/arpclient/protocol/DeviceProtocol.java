@@ -135,6 +135,13 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
         sendRequest(touchInfo, Message.TOUCH);
     }
 
+    public void sendKeyEvent(int keyCode) {
+        ByteBuffer buffer = ByteBuffer.allocate(4); // size of int
+        buffer.putInt(keyCode);
+        Message msg = new Message((byte) Message.KEY, buffer.array());
+        mConnection.write(msg);
+    }
+
     /**
      * Send a stop request to remote device before socket closed
      * Once the stop request was sent, there is no way to reconnect to the same device

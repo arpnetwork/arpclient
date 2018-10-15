@@ -25,6 +25,7 @@ import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Size;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
@@ -181,6 +182,10 @@ public class ARPClient {
             mReconnected = true;
             open();
         }
+    }
+
+    public void onBackPressed() {
+        mDeviceProtocol.sendKeyEvent(KeyEvent.KEYCODE_BACK);
     }
 
     /**

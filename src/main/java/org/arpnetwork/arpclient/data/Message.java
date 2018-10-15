@@ -27,6 +27,7 @@ public class Message {
     public static final int TOUCH = 2;
     public static final int PROTOCOL = 3;
     public static final int TIME = 4;
+    public static final int KEY = 5;
 
     private int mType;
     private byte[] mData;
