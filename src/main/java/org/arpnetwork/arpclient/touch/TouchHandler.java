@@ -70,57 +70,38 @@ public class TouchHandler {
 
         final int action = ev.getActionMasked();
 
-        final int actionIndex = ev.getActionIndex();
+        clearStringBuilder();
 
         switch (action) {
-            case MotionEvent.ACTION_DOWN: {
-                final float x = ev.getX();
-                final float y = ev.getY();
-                final int pointerId = ev.getPointerId(0);
-
-                clearStringBuilder();
-                appendTouchInfoString(pointerId, actionIndex, "d", x, y, ev);
+            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_POINTER_DOWN:
+                appendTouchInfoString(ev.getActionIndex(), "d", ev);
                 break;
-            }
-
-            case MotionEvent.ACTION_POINTER_DOWN: {
-                final int pointerId = ev.getPointerId(actionIndex);
-                final float x = ev.getX(actionIndex);
-                final float y = ev.getY(actionIndex);
-
-                clearStringBuilder();
-                appendTouchInfoString(pointerId, actionIndex, "d", x, y, ev);
-                break;
-            }
 
             case MotionEvent.ACTION_MOVE: {
                 final int pointerCount = ev.getPointerCount();
 
-                clearStringBuilder();
                 for (int i = 0; i < pointerCount; i++) {
-                    final float x = ev.getX(i);
-                    final float y = ev.getY(i);
-
-                    appendTouchInfoString(ev.getPointerId(i), actionIndex, "m", x, y, ev);
+                    appendTouchInfoString(i, "m", ev);
                 }
                 break;
             }
 
             case MotionEvent.ACTION_POINTER_UP: {
-                clearStringBuilder();
-                appendUpString(ev.getPointerId(actionIndex));
+                appendUpString(ev.getPointerId(ev.getActionIndex()));
                 break;
             }
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
-                clearStringBuilder();
                 appendUpString(ev.getPointerId(0));
                 break;
             }
         }
-        mBuilder.append("c\n");
-        mListener.onTouchInfo(mBuilder.toString());
+        if (mBuilder.length() > 0) {
+            mBuilder.append("c\n");
+            mListener.onTouchInfo(mBuilder.toString());
+        }
         return true;
     }
 
@@ -128,13 +109,20 @@ public class TouchHandler {
         mBuilder.setLength(0);
     }
 
-    private void appendTouchInfoString(int id, int index, String type, float x, float y, MotionEvent ev) {
-        mBuilder.append(String.format(Locale.US, "%s %d %d %d %d %d %d \n", type, id,
+    private void appendTouchInfoString(int index, String type, MotionEvent ev) {
+        float x = ev.getX(index);
+        float y = ev.getY(index);
+        if (x < 0 || y < 0) {
+            return;
+        }
+        String touchString = String.format(Locale.US, "%s %d %d %d %d %d %d \n", type, ev.getPointerId(index),
                 mTouchSetting.getTransformedPoint(x, y, mLandscape).x,
                 mTouchSetting.getTransformedPoint(x, y, mLandscape).y,
                 mTouchSetting.getTransformedPressure(ev.getPressure(index)),
-                mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(0)),
-                mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(0))));
+                mTouchSetting.getTransformedTouchMajor(ev.getTouchMajor(index)),
+                mTouchSetting.getTransformedTouchMinor(ev.getTouchMinor(index)));
+
+        mBuilder.append(touchString);
     }
 
     private void appendUpString(int id) {
