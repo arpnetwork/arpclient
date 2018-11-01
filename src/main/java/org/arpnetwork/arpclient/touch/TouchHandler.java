@@ -78,25 +78,20 @@ public class TouchHandler {
                 appendTouchInfoString(ev.getActionIndex(), "d", ev);
                 break;
 
-            case MotionEvent.ACTION_MOVE: {
-                final int pointerCount = ev.getPointerCount();
-
-                for (int i = 0; i < pointerCount; i++) {
+            case MotionEvent.ACTION_MOVE:
+                for (int i = 0; i < ev.getPointerCount(); i++) {
                     appendTouchInfoString(i, "m", ev);
                 }
                 break;
-            }
 
-            case MotionEvent.ACTION_POINTER_UP: {
+            case MotionEvent.ACTION_POINTER_UP:
                 appendUpString(ev.getPointerId(ev.getActionIndex()));
                 break;
-            }
 
             case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL: {
+            case MotionEvent.ACTION_CANCEL:
                 appendUpString(ev.getPointerId(0));
                 break;
-            }
         }
         if (mBuilder.length() > 0) {
             mBuilder.append("c\n");
