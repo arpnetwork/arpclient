@@ -51,6 +51,10 @@ abstract class MediaCodecThread implements Runnable {
         mStopped = true;
     }
 
+    public void start() {
+        start(null);
+    }
+
     /**
      * Start media codec thread
      *

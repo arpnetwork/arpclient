@@ -23,6 +23,7 @@ import org.arpnetwork.arpclient.data.AVPacket;
 
 public class MediaPlayer {
     private VideoCodecThread mVideoThread;
+    private AudioCodecThread mAudioThread;
 
     private Surface mSurface;
 
@@ -49,6 +50,8 @@ public class MediaPlayer {
     public void initThread() {
         mVideoThread = new VideoCodecThread();
         mVideoThreadStart = false;
+
+        mAudioThread = new AudioCodecThread();
     }
 
     /**
@@ -58,6 +61,8 @@ public class MediaPlayer {
         if (mSurface != null && !mVideoThreadStart) {
             mVideoThread.start(mSurface);
             mVideoThreadStart = true;
+
+            mAudioThread.start();
         }
     }
 
@@ -85,6 +90,10 @@ public class MediaPlayer {
      */
     public void putVideoPacket(AVPacket packet) {
         mVideoThread.putPacket(packet);
+    }
+
+    public void putAudioPacket(AVPacket packet) {
+        mAudioThread.putPacket(packet);
     }
 
     /**

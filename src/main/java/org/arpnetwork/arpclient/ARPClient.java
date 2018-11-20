@@ -420,6 +420,11 @@ public class ARPClient {
         }
 
         @Override
+        public void onAudioPacket(AVPacket packet) {
+            mMediaPlayer.putAudioPacket(packet);
+        }
+
+        @Override
         public int onProtocolPacket(String data) {
             return handleProtocolPacket(data);
         }

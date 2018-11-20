@@ -61,6 +61,12 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
         void onError(int code, String msg);
 
         /**
+         * Received audio packet
+         * @param packet audio packet
+         */
+        void onAudioPacket(AVPacket packet);
+
+        /**
          * Received video packet
          *
          * @param packet Video packet
@@ -168,8 +174,13 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
     public void onMessage(NettyConnection conn, Message msg) {
         switch (msg.getType()) {
             case Message.VIDEO:
-                AVPacket packet = getPacket(msg.getDataBuffer());
-                mListener.onVideoPacket(packet);
+                AVPacket videoPacket = getPacket(msg.getDataBuffer());
+                mListener.onVideoPacket(videoPacket);
+                break;
+
+            case Message.AUDIO:
+                AVPacket audioPacket = getPacket(msg.getDataBuffer());
+                mListener.onAudioPacket(audioPacket);
                 break;
 
             case Message.PROTOCOL:
