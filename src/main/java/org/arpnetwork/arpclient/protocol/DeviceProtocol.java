@@ -126,7 +126,7 @@ public class DeviceProtocol implements NettyConnection.ConnectionListener {
      */
     public void sendTimestamp() {
         ByteBuffer buffer = ByteBuffer.allocate(8); // size of long
-        long time = System.currentTimeMillis();
+        long time = System.nanoTime() / 1000;
         buffer.putLong(time);
         Message msg = new Message((byte) Message.TIME, buffer.array());
         mConnection.write(msg);
