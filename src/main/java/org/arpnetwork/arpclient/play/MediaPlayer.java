@@ -74,6 +74,11 @@ public class MediaPlayer {
             mVideoThread.stop();
             mVideoThread = null;
         }
+
+        if (mAudioThread != null) {
+            mAudioThread.stop();
+            mAudioThread = null;
+        }
     }
 
     /**
