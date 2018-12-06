@@ -31,8 +31,6 @@ public class MediaPlayer {
 
     private MediaPlayerListener mListener;
 
-    private boolean mVideoThreadStart;
-
     public MediaPlayer() {
         mHandler = new Handler();
     }
@@ -58,23 +56,23 @@ public class MediaPlayer {
      * @param listener MediaPlayerListener
      */
     public void initThreadWithListener(MediaPlayerListener listener) {
-        mVideoThread = new VideoCodecThread();
-        mVideoThreadStart = false;
         mListener = listener;
-        mVideoThread.setListener(listener);
-
         mAudioThread = new AudioCodecThread();
+    }
+
+    /**
+     * Start audio decode thread.
+     */
+    public void startAudio() {
+        mAudioThread.start();
     }
 
     /**
      * Start video decode thread.
      */
-    public void start() {
-        if (mSurface != null && !mVideoThreadStart) {
+    public void startVideo() {
+        if (mSurface != null && mVideoThread != null) {
             mVideoThread.start(mSurface);
-            mVideoThreadStart = true;
-
-            mAudioThread.start();
         }
     }
 
@@ -122,16 +120,24 @@ public class MediaPlayer {
      * @param videoH video height
      */
     public void setVideoSize(final int videoW, final int videoH) {
-        if (videoW != mVideoThread.getWidth() || videoH != mVideoThread.getHeight()) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    mVideoThread.stop();
-                    mVideoThread = new VideoCodecThread(videoW, videoH);
-                    mVideoThread.setListener(mListener);
-                    mVideoThread.start(mSurface);
-                }
-            });
+        if (mVideoThread == null) {
+            initVideoThread(videoW, videoH);
+        } else {
+            if (videoW != mVideoThread.getWidth() || videoH != mVideoThread.getHeight()) {
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        mVideoThread.stop();
+                        initVideoThread(videoW, videoH);
+                    }
+                });
+            }
         }
+    }
+
+    private void initVideoThread(int videoW, int videoH) {
+        mVideoThread = new VideoCodecThread(videoW, videoH);
+        mVideoThread.setListener(mListener);
+        startVideo();
     }
 }

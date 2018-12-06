@@ -69,6 +69,8 @@ abstract class MediaCodecThread implements Runnable {
      * @param surface For video render
      */
     public synchronized void start(Surface surface) {
+        if (mMediaCodec != null) return;
+
         initDecoder(surface);
 
         if (mMediaCodec != null) {

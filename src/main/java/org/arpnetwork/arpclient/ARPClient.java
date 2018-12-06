@@ -235,7 +235,7 @@ public class ARPClient {
     private void setSurface(Surface surface) {
         mMediaPlayer.setSurface(surface);
         if (mConnected) {
-            mMediaPlayer.start();
+            mMediaPlayer.startVideo();
         }
     }
 
@@ -247,7 +247,7 @@ public class ARPClient {
     }
 
     private void handleConnect() {
-        mMediaPlayer.start();
+        mMediaPlayer.startAudio();
         mReconnected = false;
         mConnected = true;
         mDeviceProtocol.sendConnectReq();
