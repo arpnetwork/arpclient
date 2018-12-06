@@ -26,6 +26,7 @@ public class ErrorInfo {
     public static final int ERROR_UNKNOWN = 100;
     public static final int ERROR_PARAM = 101;
     public static final int ERROR_NO_DEVICES= 102;
+    public static final int ERROR_MEDIA = 103;
 
     //device protocol errors
     public static final int ERROR_PROTOCOL_TOUCH_SETTING = -10001;
@@ -45,6 +46,9 @@ public class ErrorInfo {
             case ERROR_PARAM:
             case ERROR_NO_DEVICES:
                 return "server rejected";
+
+            case ERROR_MEDIA:
+                return "media data error";
 
             case ERROR_PROTOCOL_TOUCH_SETTING:
             case ERROR_PROTOCOL_VIDEO_INFO:

@@ -22,6 +22,7 @@ import android.util.Log;
 import android.view.Surface;
 
 import org.arpnetwork.arpclient.data.AVPacket;
+import org.arpnetwork.arpclient.data.ErrorInfo;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,6 +42,9 @@ abstract class MediaCodecThread implements Runnable {
     private LinkedBlockingQueue<AVPacket> mPacketQueue = new LinkedBlockingQueue<AVPacket>();
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
 
+    private boolean mFirstRendered = false;
+    private MediaPlayer.MediaPlayerListener mListener;
+
     public MediaCodecThread() {
         this(MAX_PACKETS);
     }
@@ -49,6 +53,10 @@ abstract class MediaCodecThread implements Runnable {
         mPacketQueueCapacity = capacity;
         mCodecThread = new Thread(this);
         mStopped = true;
+    }
+
+    public void setListener(MediaPlayer.MediaPlayerListener listener) {
+        mListener = listener;
     }
 
     public void start() {
@@ -186,13 +194,24 @@ abstract class MediaCodecThread implements Runnable {
     private boolean render() {
         while (!mStopped) {
             // Get output buffer index
-            int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 15);
-            if (outputBufferIndex >= 0) {
-                ByteBuffer outputBuffer = mMediaCodec.getOutputBuffer(outputBufferIndex);
-                boolean rendered = onRender(mBufferInfo, outputBuffer);
-                mMediaCodec.releaseOutputBuffer(outputBufferIndex, !rendered);
-            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                onFormatChanged(mMediaCodec.getOutputFormat());
+            try {
+                int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 15);
+                if (outputBufferIndex >= 0) {
+                    ByteBuffer outputBuffer = mMediaCodec.getOutputBuffer(outputBufferIndex);
+                    boolean rendered = onRender(mBufferInfo, outputBuffer);
+                    mMediaCodec.releaseOutputBuffer(outputBufferIndex, !rendered);
+                    if (!mFirstRendered && mListener != null) {
+                        mListener.onFirstFrameShow();
+                        mFirstRendered = true;
+                    }
+                } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    onFormatChanged(mMediaCodec.getOutputFormat());
+                }
+            } catch (Exception e) {
+                if (mListener != null) {
+                    mListener.onError(ErrorInfo.ERROR_MEDIA, ErrorInfo.getErrorMessage(ErrorInfo.ERROR_MEDIA));
+                }
+                break;
             }
         }
         return true;

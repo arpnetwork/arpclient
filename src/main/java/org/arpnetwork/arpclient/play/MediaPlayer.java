@@ -29,10 +29,18 @@ public class MediaPlayer {
 
     private Handler mHandler;
 
+    private MediaPlayerListener mListener;
+
     private boolean mVideoThreadStart;
 
     public MediaPlayer() {
         mHandler = new Handler();
+    }
+
+    public interface MediaPlayerListener {
+        void onFirstFrameShow();
+
+        void onError(int code, String msg);
     }
 
     /**
@@ -45,11 +53,15 @@ public class MediaPlayer {
     }
 
     /**
-     * Init video decode thread.
+     * Init video decode thread with call back
+     *
+     * @param listener MediaPlayerListener
      */
-    public void initThread() {
+    public void initThreadWithListener(MediaPlayerListener listener) {
         mVideoThread = new VideoCodecThread();
         mVideoThreadStart = false;
+        mListener = listener;
+        mVideoThread.setListener(listener);
 
         mAudioThread = new AudioCodecThread();
     }
@@ -79,6 +91,8 @@ public class MediaPlayer {
             mAudioThread.stop();
             mAudioThread = null;
         }
+
+        mListener = null;
     }
 
     /**
@@ -114,6 +128,7 @@ public class MediaPlayer {
                 public void run() {
                     mVideoThread.stop();
                     mVideoThread = new VideoCodecThread(videoW, videoH);
+                    mVideoThread.setListener(mListener);
                     mVideoThread.start(mSurface);
                 }
             });

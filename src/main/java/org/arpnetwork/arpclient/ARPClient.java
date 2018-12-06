@@ -240,7 +240,7 @@ public class ARPClient {
     }
 
     private void open() {
-        mMediaPlayer.initThread();
+        mMediaPlayer.initThreadWithListener(mMediaPlayerListener);
         mClosed = false;
         mDisconnected = false;
         mDeviceProtocol.open(mHost, mPort, mSession, mPackageName);
@@ -311,15 +311,6 @@ public class ARPClient {
         }
 
         mMediaPlayer.setVideoSize(videoInfo.width, videoInfo.height);
-
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (mListener != null) {
-                    mListener.onPrepared();
-                }
-            }
-        });
         return 0;
     }
 
@@ -381,6 +372,33 @@ public class ARPClient {
             mDisplaySize = new Size(width, height);
         }
     }
+
+    private final MediaPlayer.MediaPlayerListener mMediaPlayerListener = new MediaPlayer.MediaPlayerListener() {
+        @Override
+        public void onFirstFrameShow() {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (mListener != null) {
+                        mListener.onPrepared();
+                    }
+                }
+            });
+        }
+
+        @Override
+        public void onError(final int code, final String msg) {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (!mClosed && !mError) {
+                        handleError(code, msg);
+                    }
+                    stop();
+                }
+            });
+        }
+    };
 
     private final TouchHandler.OnTouchInfoListener mTouchHandlerListener = new TouchHandler.OnTouchInfoListener() {
         @Override
